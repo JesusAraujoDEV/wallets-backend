@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const axios = require('axios');
+const { sequelize, Transaction: TxModel, Category: CategoryModel, Account: AccountModel } = require('../models');
 
 // Helper para obtener la tasa de cambio
 const getVesPerUsdByDate = async (date) => {
@@ -152,130 +153,121 @@ const createTransaction = async (userId, txData) => {
 
     if (currency === 'VES') {
         exchangeRateUsed = await getVesPerUsdByDate(date);
-        amountUsd = amount / exchangeRateUsed;
+        amountUsd = Number(amount) / Number(exchangeRateUsed);
     } else if (currency === 'USD') {
         amountUsd = amount;
     }
 
-    const client = await db.pool.connect();
-    try {
-        await client.query('BEGIN');
+    return await sequelize.transaction(async (t) => {
+        const category = await CategoryModel.findOne({ where: { id: categoryId, userId }, transaction: t });
+        if (!category) throw new Error('Categoría no válida o no pertenece al usuario.');
 
-        const { rows: categoryRows } = await client.query('SELECT type FROM categories WHERE id = $1 AND user_id = $2', [categoryId, userId]);
-        if (categoryRows.length === 0) throw new Error('Categoría no válida o no pertenece al usuario.');
-        const categoryType = categoryRows[0].type;
-
+        const categoryType = category.type; // 'ingreso' | 'gasto'
         const delta = categoryType === 'ingreso' ? amount : -amount;
-        await client.query('UPDATE accounts SET balance = balance + $1 WHERE id = $2 AND user_id = $3', [delta, accountId, userId]);
 
-        const { rows: txRows } = await client.query(
-            `INSERT INTO transactions (description, amount, currency, amount_usd, exchange_rate_used, date, category_id, account_id, user_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             RETURNING id, description, amount, currency, amount_usd AS "amountUsd", exchange_rate_used AS "exchangeRateUsed", date, category_id AS "categoryId", account_id AS "accountId"`,
-            [description, amount, currency, amountUsd, exchangeRateUsed, date, categoryId, accountId, userId]
-        );
-        
-        const newTx = { ...txRows[0], type: categoryType === 'ingreso' ? 'income' : 'expense' };
+        const account = await AccountModel.findOne({ where: { id: accountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
+        if (!account) throw new Error('Cuenta no válida o no pertenece al usuario.');
+        const newBalance = Number(account.balance) + Number(delta);
+        await account.update({ balance: newBalance }, { transaction: t });
 
-        await client.query('COMMIT');
-        return { tx: newTx };
-    } catch (e) {
-        await client.query('ROLLBACK');
-        throw e;
-    } finally {
-        client.release();
-    }
+        const created = await TxModel.create({
+            description,
+            amount,
+            currency,
+            amountUsd,
+            exchangeRateUsed,
+            date,
+            categoryId,
+            accountId,
+            userId,
+        }, { transaction: t });
+
+        return { tx: {
+            id: created.id,
+            description: created.description,
+            amount: created.amount,
+            currency: created.currency,
+            amountUsd: created.amountUsd,
+            exchangeRateUsed: created.exchangeRateUsed,
+            date: created.date,
+            categoryId: created.categoryId,
+            accountId: created.accountId,
+            type: categoryType === 'ingreso' ? 'income' : 'expense',
+        }};
+    });
 };
 
 const updateTransaction = async (txId, userId, txData) => {
     const { description, amount, date, categoryId, accountId, currency } = txData;
 
-    const client = await db.pool.connect();
-    try {
-        await client.query('BEGIN');
-
-        const { rows: oldTxRows } = await client.query(
-            `SELECT t.*, c.type as old_category_type FROM transactions t
-             JOIN categories c ON t.category_id = c.id
-             WHERE t.id = $1 AND t.user_id = $2`,
-            [txId, userId]
-        );
-        if (oldTxRows.length === 0) return null;
-        const oldTx = oldTxRows[0];
+    return await sequelize.transaction(async (t) => {
+        const oldTx = await TxModel.findOne({ where: { id: txId, userId }, transaction: t, lock: t.LOCK.UPDATE, include: [{ model: CategoryModel, attributes: ['type'] }] });
+        if (!oldTx) return null;
 
         // Revert old balance
-        const oldDelta = oldTx.old_category_type === 'ingreso' ? -oldTx.amount : oldTx.amount;
-        await client.query('UPDATE accounts SET balance = balance + $1 WHERE id = $2 AND user_id = $3', [oldDelta, oldTx.account_id, userId]);
+        const oldCategoryType = oldTx.Category?.type || (await CategoryModel.findByPk(oldTx.categoryId, { transaction: t })).type;
+        const oldDelta = oldCategoryType === 'ingreso' ? -Number(oldTx.amount) : Number(oldTx.amount);
+        const oldAccount = await AccountModel.findOne({ where: { id: oldTx.accountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
+        if (oldAccount) await oldAccount.update({ balance: Number(oldAccount.balance) + oldDelta }, { transaction: t });
 
-        // Apply new balance
-        const { rows: newCategoryRows } = await client.query('SELECT type FROM categories WHERE id = $1 AND user_id = $2', [categoryId, userId]);
-        if (newCategoryRows.length === 0) throw new Error('Nueva categoría no es válida.');
-        const newCategoryType = newCategoryRows[0].type;
-        
-        const newDelta = newCategoryType === 'ingreso' ? amount : -amount;
-        await client.query('UPDATE accounts SET balance = balance + $1 WHERE id = $2 AND user_id = $3', [newDelta, accountId, userId]);
+        // New category and account
+        const newCategory = await CategoryModel.findOne({ where: { id: categoryId, userId }, transaction: t });
+        if (!newCategory) throw new Error('Nueva categoría no es válida.');
+        const newCategoryType = newCategory.type;
+
+        const newAccount = await AccountModel.findOne({ where: { id: accountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
+        if (!newAccount) throw new Error('Cuenta no válida.');
+        const newDelta = newCategoryType === 'ingreso' ? Number(amount) : -Number(amount);
+        await newAccount.update({ balance: Number(newAccount.balance) + newDelta }, { transaction: t });
 
         let amountUsd = null;
         let exchangeRateUsed = null;
         if (currency === 'VES') {
             exchangeRateUsed = await getVesPerUsdByDate(date);
-            amountUsd = amount / exchangeRateUsed;
+            amountUsd = Number(amount) / Number(exchangeRateUsed);
         } else if (currency === 'USD') {
             amountUsd = amount;
         }
 
-        const { rows: updatedTxRows } = await client.query(
-            `UPDATE transactions SET
-                description = $1, amount = $2, currency = $3, date = $4, category_id = $5, account_id = $6,
-                amount_usd = $7, exchange_rate_used = $8, updated_at = CURRENT_TIMESTAMP
-             WHERE id = $9 AND user_id = $10
-             RETURNING id, description, amount, currency, amount_usd AS "amountUsd", exchange_rate_used AS "exchangeRateUsed", date, category_id AS "categoryId", account_id AS "accountId"`,
-            [description, amount, currency, date, categoryId, accountId, amountUsd, exchangeRateUsed, txId, userId]
-        );
+        await oldTx.update({
+            description,
+            amount,
+            currency,
+            date,
+            categoryId,
+            accountId,
+            amountUsd,
+            exchangeRateUsed,
+        }, { transaction: t });
 
-        const updatedTx = { ...updatedTxRows[0], type: newCategoryType === 'ingreso' ? 'income' : 'expense' };
-
-        await client.query('COMMIT');
-        return { tx: updatedTx };
-    } catch (e) {
-        await client.query('ROLLBACK');
-        throw e;
-    } finally {
-        client.release();
-    }
+        return { tx: {
+            id: oldTx.id,
+            description: oldTx.description,
+            amount: oldTx.amount,
+            currency: oldTx.currency,
+            date: oldTx.date,
+            categoryId: oldTx.categoryId,
+            accountId: oldTx.accountId,
+            amountUsd: oldTx.amountUsd,
+            exchangeRateUsed: oldTx.exchangeRateUsed,
+            type: newCategoryType === 'ingreso' ? 'income' : 'expense',
+        }};
+    });
 };
 
 const deleteTransaction = async (txId, userId) => {
-     const client = await db.pool.connect();
-    try {
-        await client.query('BEGIN');
+    return await sequelize.transaction(async (t) => {
+        const oldTx = await TxModel.findOne({ where: { id: txId, userId }, transaction: t, lock: t.LOCK.UPDATE, include: [{ model: CategoryModel, attributes: ['type'] }] });
+        if (!oldTx) return { rowCount: 0 };
 
-        const { rows: oldTxRows } = await client.query(
-            `SELECT t.*, c.type as old_category_type FROM transactions t
-             JOIN categories c ON t.category_id = c.id
-             WHERE t.id = $1 AND t.user_id = $2`,
-            [txId, userId]
-        );
-        if (oldTxRows.length === 0) {
-            await client.query('ROLLBACK');
-            return { rowCount: 0 };
-        }
-        const oldTx = oldTxRows[0];
+        const oldCategoryType = oldTx.Category?.type || (await CategoryModel.findByPk(oldTx.categoryId, { transaction: t })).type;
+        const oldDelta = oldCategoryType === 'ingreso' ? -Number(oldTx.amount) : Number(oldTx.amount);
+        const account = await AccountModel.findOne({ where: { id: oldTx.accountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
+        if (account) await account.update({ balance: Number(account.balance) + oldDelta }, { transaction: t });
 
-        // Revert balance
-        const oldDelta = oldTx.old_category_type === 'ingreso' ? -oldTx.amount : oldTx.amount;
-        await client.query('UPDATE accounts SET balance = balance + $1 WHERE id = $2 AND user_id = $3', [oldDelta, oldTx.account_id, userId]);
-
-        const result = await client.query('DELETE FROM transactions WHERE id = $1 AND user_id = $2', [txId, userId]);
-        
-        await client.query('COMMIT');
-        return result;
-    } catch (e) {
-        await client.query('ROLLBACK');
-        throw e;
-    } finally {
-        client.release();
-    }
+        await oldTx.destroy({ transaction: t });
+        return { rowCount: 1 };
+    });
 };
 
 
