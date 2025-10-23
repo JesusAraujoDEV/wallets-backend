@@ -7,17 +7,20 @@ const app = express();
 // Middlewares
 // CORS configurado con whitelist desde env FRONTEND_URLS (CSV)
 const parseCsv = (s) => (s ? s.split(',').map((x) => x.trim()).filter(Boolean) : []);
-const FRONTEND_URLS = parseCsv(process.env.FRONTEND_URLS || 'http://localhost:8080');
+const normalizeOrigin = (o) => (o ? o.replace(/\/$/, '').toLowerCase() : o);
+const FRONTEND_URLS = parseCsv(process.env.FRONTEND_URLS || 'http://localhost:8080').map(normalizeOrigin);
 const corsOptions = {
     origin: function (origin, callback) {
         // Permitir herramientas como Postman (sin origin)
         if (!origin) return callback(null, true);
-        if (FRONTEND_URLS.includes(origin)) return callback(null, true);
+        const isAllowed = FRONTEND_URLS.includes(normalizeOrigin(origin));
+        if (isAllowed) return callback(null, true);
         return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Authorization', 'Content-Type'],
+    methods: ['GET', 'HEAD', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    // No fijamos allowedHeaders para que el paquete 'cors' refleje Access-Control-Request-Headers automáticamente
+    optionsSuccessStatus: 204,
 };
 app.use(cors(corsOptions));
 // Responder preflights para cualquier ruta
