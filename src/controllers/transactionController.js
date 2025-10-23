@@ -45,7 +45,11 @@ const createTransaction = async (req, res) => {
 
 const updateTransaction = async (req, res) => {
     try {
-        const result = await transactionService.updateTransaction(req.query.id, req.user.id, req.body);
+        const id = parseInt(req.query.id, 10);
+        if (!id || Number.isNaN(id)) {
+            return res.status(400).json({ ok: false, message: 'Parámetro id inválido.' });
+        }
+        const result = await transactionService.updateTransaction(id, req.user.id, req.body);
         if (!result) {
             return res.status(404).json({ ok: false, message: 'Transacción no encontrada o no pertenece al usuario.' });
         }

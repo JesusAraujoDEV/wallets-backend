@@ -165,7 +165,7 @@ const createTransaction = async (userId, txData) => {
         const categoryType = category.type; // 'ingreso' | 'gasto'
         const delta = categoryType === 'ingreso' ? amount : -amount;
 
-        const account = await AccountModel.findOne({ where: { id: accountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
+    const account = await AccountModel.findOne({ where: { id: accountId, userId }, transaction: t });
         if (!account) throw new Error('Cuenta no válida o no pertenece al usuario.');
         const newBalance = Number(account.balance) + Number(delta);
         await account.update({ balance: newBalance }, { transaction: t });
@@ -199,43 +199,57 @@ const createTransaction = async (userId, txData) => {
 
 const updateTransaction = async (txId, userId, txData) => {
     const { description, amount, date, categoryId, accountId, currency } = txData;
+    const categoryIdNum = categoryId != null ? parseInt(categoryId) : undefined;
+    const accountIdNum = accountId != null ? parseInt(accountId) : undefined;
 
     return await sequelize.transaction(async (t) => {
-        const oldTx = await TxModel.findOne({ where: { id: txId, userId }, transaction: t, lock: t.LOCK.UPDATE, include: [{ model: CategoryModel, attributes: ['type'] }] });
+        // Evitar locks para no provocar errores con joins
+        const oldTx = await TxModel.findOne({ where: { id: txId, userId }, transaction: t });
         if (!oldTx) return null;
 
+        // Determine new values (partial PATCH support)
+        const newDescription = typeof description === 'string' ? description : oldTx.description;
+        const newAmount = amount != null ? Number(amount) : Number(oldTx.amount);
+        const newCurrency = typeof currency === 'string' ? currency : oldTx.currency;
+        const newDate = date ? date : oldTx.date; // keep DATEONLY or string
+        const newCategoryId = categoryIdNum != null ? categoryIdNum : oldTx.categoryId;
+        const newAccountId = accountIdNum != null ? accountIdNum : oldTx.accountId;
+
         // Revert old balance
-        const oldCategoryType = oldTx.Category?.type || (await CategoryModel.findByPk(oldTx.categoryId, { transaction: t })).type;
+        const oldCategoryType = (await CategoryModel.findByPk(oldTx.categoryId, { transaction: t }))?.type;
         const oldDelta = oldCategoryType === 'ingreso' ? -Number(oldTx.amount) : Number(oldTx.amount);
-        const oldAccount = await AccountModel.findOne({ where: { id: oldTx.accountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
+    const oldAccount = await AccountModel.findOne({ where: { id: oldTx.accountId, userId }, transaction: t });
         if (oldAccount) await oldAccount.update({ balance: Number(oldAccount.balance) + oldDelta }, { transaction: t });
 
-        // New category and account
-        const newCategory = await CategoryModel.findOne({ where: { id: categoryId, userId }, transaction: t });
+        // New category and account validations
+        const newCategory = await CategoryModel.findOne({ where: { id: newCategoryId, userId }, transaction: t });
         if (!newCategory) throw new Error('Nueva categoría no es válida.');
         const newCategoryType = newCategory.type;
 
-        const newAccount = await AccountModel.findOne({ where: { id: accountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
+    const newAccount = await AccountModel.findOne({ where: { id: newAccountId, userId }, transaction: t });
         if (!newAccount) throw new Error('Cuenta no válida.');
-        const newDelta = newCategoryType === 'ingreso' ? Number(amount) : -Number(amount);
+
+        // Apply new balance
+        const newDelta = newCategoryType === 'ingreso' ? Number(newAmount) : -Number(newAmount);
         await newAccount.update({ balance: Number(newAccount.balance) + newDelta }, { transaction: t });
 
+        // Recalculate USD equivalence if needed
         let amountUsd = null;
         let exchangeRateUsed = null;
-        if (currency === 'VES') {
-            exchangeRateUsed = await getVesPerUsdByDate(date);
-            amountUsd = Number(amount) / Number(exchangeRateUsed);
-        } else if (currency === 'USD') {
-            amountUsd = amount;
+        if (newCurrency === 'VES') {
+            exchangeRateUsed = await getVesPerUsdByDate(newDate);
+            amountUsd = Number(newAmount) / Number(exchangeRateUsed);
+        } else if (newCurrency === 'USD') {
+            amountUsd = newAmount;
         }
 
         await oldTx.update({
-            description,
-            amount,
-            currency,
-            date,
-            categoryId,
-            accountId,
+            description: newDescription,
+            amount: newAmount,
+            currency: newCurrency,
+            date: newDate,
+            categoryId: newCategoryId,
+            accountId: newAccountId,
             amountUsd,
             exchangeRateUsed,
         }, { transaction: t });
@@ -257,12 +271,13 @@ const updateTransaction = async (txId, userId, txData) => {
 
 const deleteTransaction = async (txId, userId) => {
     return await sequelize.transaction(async (t) => {
-        const oldTx = await TxModel.findOne({ where: { id: txId, userId }, transaction: t, lock: t.LOCK.UPDATE, include: [{ model: CategoryModel, attributes: ['type'] }] });
+        // Evitar locks para no provocar errores con joins
+        const oldTx = await TxModel.findOne({ where: { id: txId, userId }, transaction: t });
         if (!oldTx) return { rowCount: 0 };
 
-        const oldCategoryType = oldTx.Category?.type || (await CategoryModel.findByPk(oldTx.categoryId, { transaction: t })).type;
+        const oldCategoryType = (await CategoryModel.findByPk(oldTx.categoryId, { transaction: t }))?.type;
         const oldDelta = oldCategoryType === 'ingreso' ? -Number(oldTx.amount) : Number(oldTx.amount);
-        const account = await AccountModel.findOne({ where: { id: oldTx.accountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
+        const account = await AccountModel.findOne({ where: { id: oldTx.accountId, userId }, transaction: t });
         if (account) await account.update({ balance: Number(account.balance) + oldDelta }, { transaction: t });
 
         await oldTx.destroy({ transaction: t });
