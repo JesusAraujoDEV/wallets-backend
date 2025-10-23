@@ -2,10 +2,11 @@
   "name": "wallets-backend",
   "version": "1.0.0",
   "description": "Backend for the Wallets personal finance application",
-  "main": "index.js",
+  "main": "server/server.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node server/server.js",
+    "dev": "nodemon server/server.js",
+    "start:legacy": "node index.js"
   },
   "keywords": [
     "express",
@@ -16,8 +17,10 @@
   "author": "JesusAraujoDEV",
   "license": "ISC",
   "dependencies": {
+    "@hapi/boom": "^10.0.1",
     "axios": "^1.12.2",
     "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
