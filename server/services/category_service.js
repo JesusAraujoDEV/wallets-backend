@@ -1,4 +1,13 @@
 const { models } = require('../libs/sequelize');
+const boom = require('@hapi/boom');
+
+function normalizeType(input) {
+  if (!input) return null;
+  const v = String(input).toLowerCase();
+  if (v === 'ingreso' || v === 'income') return 'ingreso';
+  if (v === 'gasto' || v === 'expense') return 'gasto';
+  throw boom.badRequest('Tipo de categoría inválido. Use "income"/"expense" o "ingreso"/"gasto".');
+}
 
 async function list(userId) {
   return await models.Category.findAll({
@@ -10,14 +19,22 @@ async function list(userId) {
 }
 
 async function create(userId, { name, type, icon, color, colorName }) {
-  const created = await models.Category.create({ name, type, icon, color, colorName, userId });
+  const dbType = normalizeType(type);
+  const created = await models.Category.create({ name, type: dbType, icon, color, colorName, userId });
   return { id: created.id };
 }
 
 async function update(categoryId, userId, { name, type, icon, color, colorName }) {
   const cat = await models.Category.findOne({ where: { id: categoryId, userId } });
   if (!cat) return null;
-  await cat.update({ name, type, icon, color, colorName });
+  const updates = {};
+  if (typeof name === 'string') updates.name = name;
+  if (typeof icon === 'string') updates.icon = icon;
+  if (typeof color === 'string') updates.color = color;
+  if (typeof colorName === 'string') updates.colorName = colorName;
+  if (typeof type !== 'undefined' && type !== null) updates.type = normalizeType(type);
+  if (Object.keys(updates).length === 0) return { id: categoryId };
+  await cat.update(updates);
   return { id: categoryId };
 }
 
