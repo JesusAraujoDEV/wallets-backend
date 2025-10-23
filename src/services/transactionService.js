@@ -44,13 +44,13 @@ const getGroupedTransactions = async (filters) => {
         paramIndex++;
     }
     if (categoryId) {
-        whereClauses.push(`t.category_id::text = $${paramIndex}`);
-        params.push(categoryId);
+        whereClauses.push(`t.category_id = $${paramIndex}`);
+        params.push(parseInt(categoryId));
         paramIndex++;
     }
     if (accountId) {
-        whereClauses.push(`t.account_id::text = $${paramIndex}`);
-        params.push(accountId);
+        whereClauses.push(`t.account_id = $${paramIndex}`);
+        params.push(parseInt(accountId));
         paramIndex++;
     }
     if (date) {
@@ -130,8 +130,8 @@ const getAllTransactions = async (filters) => {
 
      if (q) { whereClauses.push(`(t.description ILIKE $${paramIndex} OR c.name ILIKE $${paramIndex})`); params.push(`%${q}%`); paramIndex++; }
     if (type) { whereClauses.push(`c.type = $${paramIndex}`); params.push(type === 'income' ? 'ingreso' : 'gasto'); paramIndex++; }
-    if (categoryId) { whereClauses.push(`t.category_id::text = $${paramIndex}`); params.push(categoryId); paramIndex++; }
-    if (accountId) { whereClauses.push(`t.account_id::text = $${paramIndex}`); params.push(accountId); paramIndex++; }
+    if (categoryId) { whereClauses.push(`t.category_id = $${paramIndex}`); params.push(parseInt(categoryId)); paramIndex++; }
+    if (accountId) { whereClauses.push(`t.account_id = $${paramIndex}`); params.push(parseInt(accountId)); paramIndex++; }
     if (date) { whereClauses.push(`t.date::date = $${paramIndex}`); params.push(date); paramIndex++; }
 
     const query = `
