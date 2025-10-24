@@ -2,6 +2,17 @@ const axios = require('axios');
 const { Op, fn, col, where: sqWhere, literal } = require('sequelize');
 const { sequelize, models } = require('../libs/sequelize');
 
+function parseIdFilter(input) {
+  if (!input) return null;
+  const parts = Array.isArray(input) ? input : String(input).split(',');
+  const ids = parts
+    .map((s) => parseInt(String(s).trim(), 10))
+    .filter((n) => Number.isInteger(n) && n > 0);
+  if (ids.length === 0) return null;
+  // unique
+  return Array.from(new Set(ids));
+}
+
 async function getVesPerUsdByDate(date) {
   const targetDate = date ? new Date(date) : new Date();
   for (let i = 0; i < 7; i++) {
@@ -21,8 +32,10 @@ async function getVesPerUsdByDate(date) {
 async function getAllTransactions(filters) {
   const { userId, q, type, categoryId, accountId, date } = filters;
   const whereTx = { userId };
-  if (accountId) whereTx.accountId = parseInt(accountId);
-  if (categoryId) whereTx.categoryId = parseInt(categoryId);
+  const accountIds = parseIdFilter(accountId);
+  const categoryIds = parseIdFilter(categoryId);
+  if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
+  if (categoryIds) whereTx.categoryId = categoryIds.length > 1 ? { [Op.in]: categoryIds } : categoryIds[0];
   if (date) whereTx.date = date;
 
   const include = [];
@@ -62,8 +75,10 @@ async function getAllTransactions(filters) {
 async function getGroupedTransactions(filters) {
   const { userId, pageSize = 20, cursorDate, q, type, categoryId, accountId, date } = filters;
   const whereTx = { userId };
-  if (accountId) whereTx.accountId = parseInt(accountId);
-  if (categoryId) whereTx.categoryId = parseInt(categoryId);
+  const accountIds = parseIdFilter(accountId);
+  const categoryIds = parseIdFilter(categoryId);
+  if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
+  if (categoryIds) whereTx.categoryId = categoryIds.length > 1 ? { [Op.in]: categoryIds } : categoryIds[0];
   if (date) whereTx.date = date;
   if (cursorDate) whereTx.date = { [Op.lt]: cursorDate };
 
