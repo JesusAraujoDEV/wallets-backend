@@ -47,7 +47,13 @@ async function getAllTransactions(filters) {
       sqWhere(col('Category.name'), { [Op.iLike]: `%${q}%` })
     ];
   }
-  include.push({ model: models.Category, attributes: ['type', 'name'], where: Object.keys(catWhere).length ? catWhere : undefined, required: false });
+  // If filtering by category type, make the join required so non-matching categories are excluded
+  include.push({
+    model: models.Category,
+    attributes: ['type', 'name'],
+    where: Object.keys(catWhere).length ? catWhere : undefined,
+    required: !!type,
+  });
 
   const rows = await models.Transaction.findAll({
     attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], 'date', ['category_id', 'categoryId'], ['account_id', 'accountId']],
@@ -91,10 +97,10 @@ async function getGroupedTransactions(filters) {
       sqWhere(col('Category.name'), { [Op.iLike]: `%${q}%` })
     ];
   }
-  include.push({ model: models.Category, attributes: ['type', 'name'], where: Object.keys(catWhere).length ? catWhere : undefined, required: false });
+  include.push({ model: models.Category, attributes: ['type', 'name'], where: Object.keys(catWhere).length ? catWhere : undefined, required: !!type });
 
   // For day counts, avoid selecting Category columns to prevent GROUP BY issues
-  const includeDay = [{ model: models.Category, attributes: [], where: Object.keys(catWhere).length ? catWhere : undefined, required: false }];
+  const includeDay = [{ model: models.Category, attributes: [], where: Object.keys(catWhere).length ? catWhere : undefined, required: !!type }];
   const dayRows = await models.Transaction.findAll({
     attributes: [[fn('DATE', col('Transaction.date')), 'day'], [fn('COUNT', col('Transaction.id')), 'tx_count']],
     where: whereTx,
