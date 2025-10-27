@@ -29,14 +29,35 @@ async function getVesPerUsdByDate(date) {
   return 150;
 }
 
+function monthToRange(monthStr) {
+  // monthStr expected 'YYYY-MM'
+  if (!monthStr || typeof monthStr !== 'string') return null;
+  const [y, m] = monthStr.split('-').map((v) => parseInt(v, 10));
+  if (!y || !m || m < 1 || m > 12) return null;
+  const start = new Date(Date.UTC(y, m - 1, 1));
+  const end = new Date(Date.UTC(y, m, 0)); // last day of month
+  const toISO = (d) => d.toISOString().slice(0, 10);
+  return { from: toISO(start), to: toISO(end) };
+}
+
 async function getAllTransactions(filters) {
-  const { userId, q, type, categoryId, accountId, date } = filters;
+  const { userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month } = filters;
   const whereTx = { userId };
   const accountIds = parseIdFilter(accountId);
   const categoryIds = parseIdFilter(categoryId);
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
   if (categoryIds) whereTx.categoryId = categoryIds.length > 1 ? { [Op.in]: categoryIds } : categoryIds[0];
-  if (date) whereTx.date = date;
+  // date filters: range or single day
+  const monthRange = monthToRange(month);
+  const from = dateFrom || monthRange?.from || null;
+  const to = dateTo || monthRange?.to || null;
+  if (from || to) {
+    whereTx.date = {};
+    if (from) whereTx.date[Op.gte] = from;
+    if (to) whereTx.date[Op.lte] = to;
+  } else if (date) {
+    whereTx.date = date;
+  }
 
   const include = [];
   const catWhere = {};
@@ -79,14 +100,30 @@ async function getAllTransactions(filters) {
 }
 
 async function getGroupedTransactions(filters) {
-  const { userId, pageSize = 20, cursorDate, q, type, categoryId, accountId, date } = filters;
+  const { userId, pageSize = 20, cursorDate, q, type, categoryId, accountId, date, dateFrom, dateTo, month } = filters;
   const whereTx = { userId };
   const accountIds = parseIdFilter(accountId);
   const categoryIds = parseIdFilter(categoryId);
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
   if (categoryIds) whereTx.categoryId = categoryIds.length > 1 ? { [Op.in]: categoryIds } : categoryIds[0];
-  if (date) whereTx.date = date;
-  if (cursorDate) whereTx.date = { [Op.lt]: cursorDate };
+  // Build date clause (range, single day, and pagination upper bound)
+  const monthRange = monthToRange(month);
+  const from = dateFrom || monthRange?.from || null;
+  const to = dateTo || monthRange?.to || null;
+  if (from || to) {
+    whereTx.date = {};
+    if (from) whereTx.date[Op.gte] = from;
+    if (to) whereTx.date[Op.lte] = to;
+  } else if (date) {
+    whereTx.date = date;
+  }
+  if (cursorDate) {
+    if (typeof whereTx.date === 'object' && whereTx.date !== null) {
+      whereTx.date[Op.lt] = cursorDate;
+    } else if (!whereTx.date) {
+      whereTx.date = { [Op.lt]: cursorDate };
+    } // if exact date present, we keep it (cursorDate irrelevant for a single day)
+  }
 
   const include = [];
   const catWhere = {};
@@ -138,9 +175,17 @@ async function getGroupedTransactions(filters) {
   let nextCursorDate = null;
   if (items.length > 0) {
     const lastDate = items[items.length - 1].date;
+    // Build hasMore date clause respecting lower bound (from/dateFrom/month)
+    let hasMoreDateClause = { [Op.lt]: lastDate };
+    if (typeof whereTx.date === 'object' && whereTx.date !== null) {
+      const lowerOps = {};
+      if (whereTx.date[Op.gte]) lowerOps[Op.gte] = whereTx.date[Op.gte];
+      if (whereTx.date[Op.lte]) lowerOps[Op.lte] = whereTx.date[Op.lte];
+      hasMoreDateClause = { ...lowerOps, [Op.lt]: lastDate };
+    }
     const hasMore = await models.Transaction.findOne({
       attributes: ['id'],
-      where: { ...whereTx, date: { [Op.lt]: lastDate } },
+      where: { ...whereTx, date: hasMoreDateClause },
       include,
     });
     if (hasMore) nextCursorDate = lastDate;
