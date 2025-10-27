@@ -34,6 +34,48 @@
  *           description: Tipo de la categoría asociada
  *       required: [id, description, amount, currency, date, categoryId, accountId]
  *     GroupedTransactionsResponse:
+ *     TransferRequest:
+ *       type: object
+ *       properties:
+ *         fromAccountId:
+ *           type: integer
+ *           description: ID de la cuenta origen
+ *         toAccountId:
+ *           type: integer
+ *           description: ID de la cuenta destino
+ *         amount:
+ *           type: number
+ *           format: float
+ *           description: Monto a transferir
+ *         commission:
+ *           type: number
+ *           format: float
+ *           description: Comisión de la transferencia (se registrará como gasto aparte)
+ *           default: 0
+ *         date:
+ *           type: string
+ *           format: date
+ *           description: Fecha de la transferencia (YYYY-MM-DD)
+ *         concept:
+ *           type: string
+ *           description: Concepto opcional para describir la transferencia
+ *       required: [fromAccountId, toAccountId, amount, date]
+ *     TransferResponse:
+ *       type: object
+ *       properties:
+ *         ok:
+ *           type: boolean
+ *         transfer:
+ *           type: object
+ *           properties:
+ *             outTx:
+ *               $ref: '#/components/schemas/Transaction'
+ *             inTx:
+ *               $ref: '#/components/schemas/Transaction'
+ *             commissionTx:
+ *               nullable: true
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Transaction'
  *       type: object
  *       properties:
  *         items:
@@ -134,6 +176,67 @@
  *                 items:
  *                   $ref: '#/components/schemas/Transaction'
  *               - $ref: '#/components/schemas/GroupedTransactionsResponse'
+ *   post:
+ *     summary: Crear una transacción simple
+ *     tags: [Transactions]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               description:
+ *                 type: string
+ *               amount:
+ *                 type: number
+ *               currency:
+ *                 type: string
+ *                 enum: [VES, USD]
+ *               date:
+ *                 type: string
+ *                 format: date
+ *               categoryId:
+ *                 type: integer
+ *               accountId:
+ *                 type: integer
+ *             required: [description, amount, currency, date, categoryId, accountId]
+ *     responses:
+ *       201:
+ *         description: Transacción creada
+ *       400:
+ *         description: Error de validación
+ *       500:
+ *         description: Error del servidor
+ *
+ * /transactions/transfer:
+ *   post:
+ *     summary: Crear una transferencia entre cuentas (genera 2 movimientos y 1 gasto de comisión opcional)
+ *     tags: [Transactions]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/TransferRequest'
+ *           example:
+ *             fromAccountId: 1
+ *             toAccountId: 2
+ *             amount: 400
+ *             commission: 10
+ *             date: "2025-10-27"
+ *             concept: "Pago tarjeta"
+ *     responses:
+ *       201:
+ *         description: Transferencia creada (movimiento de salida, entrada y gasto por comisión)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/TransferResponse'
+ *       400:
+ *         description: Error de validación (e.g., cuentas inválidas o monedas distintas)
+ *       500:
+ *         description: Error del servidor
  */
 
 // file exists only to host Swagger JSDoc comments for /transactions

@@ -207,7 +207,7 @@ async function getGroupedTransactions(filters) {
   return { items: shaped, hasMore: nextCursorDate !== null, nextCursorDate };
 }
 
-async function createTransaction(userId, txData) {
+async function createTransactionInT(t, userId, txData) {
   const { description, amount, currency, date, categoryId, accountId } = txData;
   let amountUsd = null;
   let exchangeRateUsed = null;
@@ -217,41 +217,204 @@ async function createTransaction(userId, txData) {
   } else if (currency === 'USD') {
     amountUsd = amount;
   }
+
+  const category = await models.Category.findOne({ where: { id: categoryId, userId }, transaction: t });
+  if (!category) throw new Error('Categoría no válida o no pertenece al usuario.');
+  const categoryType = category.type; // 'ingreso' | 'gasto'
+  const delta = categoryType === 'ingreso' ? Number(amount) : -Number(amount);
+
+  const account = await models.Account.findOne({ where: { id: accountId, userId }, transaction: t });
+  if (!account) throw new Error('Cuenta no válida o no pertenece al usuario.');
+  const newBalance = Number(account.balance) + Number(delta);
+  await account.update({ balance: newBalance }, { transaction: t });
+
+  const created = await models.Transaction.create({
+    description,
+    amount,
+    currency,
+    amountUsd,
+    exchangeRateUsed,
+    date,
+    categoryId,
+    accountId,
+    userId,
+  }, { transaction: t });
+
+  return { tx: {
+    id: created.id,
+    description: created.description,
+    amount: created.amount,
+    currency: created.currency,
+    amountUsd: created.amountUsd,
+    exchangeRateUsed: created.exchangeRateUsed,
+    date: created.date,
+    categoryId: created.categoryId,
+    accountId: created.accountId,
+    type: categoryType === 'ingreso' ? 'income' : 'expense',
+  }};
+}
+
+async function createTransaction(userId, txData) {
   return await sequelize.transaction(async (t) => {
-    const category = await models.Category.findOne({ where: { id: categoryId, userId }, transaction: t });
-    if (!category) throw new Error('Categoría no válida o no pertenece al usuario.');
-    const categoryType = category.type; // 'ingreso' | 'gasto'
-    const delta = categoryType === 'ingreso' ? amount : -amount;
+    return await createTransactionInT(t, userId, txData);
+  });
+}
 
-    const account = await models.Account.findOne({ where: { id: accountId, userId }, transaction: t });
-    if (!account) throw new Error('Cuenta no válida o no pertenece al usuario.');
-    const newBalance = Number(account.balance) + Number(delta);
-    await account.update({ balance: newBalance }, { transaction: t });
+async function findOrCreateCategoryByName(userId, name, type, t, defaults = {}) {
+  const normalizedType = type === 'income' || type === 'ingreso' ? 'ingreso' : 'gasto';
+  let cat = await models.Category.findOne({ where: { userId, type: normalizedType, name: { [Op.iLike]: name } }, transaction: t });
+  if (cat) return cat;
+  cat = await models.Category.create({ userId, name, type: normalizedType, ...defaults }, { transaction: t });
+  return cat;
+}
 
-    const created = await models.Transaction.create({
-      description,
-      amount,
-      currency,
-      amountUsd,
-      exchangeRateUsed,
+async function createTransfer(userId, payload) {
+  const {
+    fromAccountId,
+    toAccountId,
+    amount,
+    commission = 0,
+    date,
+    concept = '',
+  } = payload || {};
+
+  const fromId = parseInt(fromAccountId, 10);
+  const toId = parseInt(toAccountId, 10);
+  const amt = Number(amount);
+  const comm = Number(commission || 0);
+  if (!fromId || !toId || Number.isNaN(fromId) || Number.isNaN(toId)) throw new Error('Parámetros de cuentas inválidos.');
+  if (fromId === toId) throw new Error('La cuenta origen y destino deben ser diferentes.');
+  if (!amt || amt <= 0) throw new Error('El monto de la transferencia debe ser mayor a 0.');
+  if (!date) throw new Error('La fecha es requerida.');
+  if (comm < 0) throw new Error('La comisión no puede ser negativa.');
+
+  return await sequelize.transaction(async (t) => {
+    const fromAccount = await models.Account.findOne({ where: { id: fromId, userId }, transaction: t });
+    const toAccount = await models.Account.findOne({ where: { id: toId, userId }, transaction: t });
+    if (!fromAccount) throw new Error('Cuenta origen no válida o no pertenece al usuario.');
+    if (!toAccount) throw new Error('Cuenta destino no válida o no pertenece al usuario.');
+
+    if (fromAccount.currency !== toAccount.currency) {
+      throw new Error('Las transferencias entre cuentas de distinta moneda aún no están soportadas.');
+    }
+
+    // Categories: Transfer out (expense), Transfer in (income), Commission (expense)
+    const catOut = await findOrCreateCategoryByName(userId, 'Transferencia', 'gasto', t, { icon: 'ArrowUpRight', color: '#F59E0B', colorName: 'Amber' });
+    const catIn = await findOrCreateCategoryByName(userId, 'Transferencia', 'ingreso', t, { icon: 'ArrowDownLeft', color: '#10B981', colorName: 'Emerald' });
+    const catCommission = await findOrCreateCategoryByName(userId, 'comision', 'gasto', t, { icon: 'ReceiptText', color: '#6B7280', colorName: 'Gray' });
+
+    // Build canonical descriptions
+    const descOut = concept && concept.trim().length
+      ? `Transferencia a ${toAccount.name}: ${concept}`
+      : `Transferencia a ${toAccount.name}`;
+    const descIn = concept && concept.trim().length
+      ? `Transferencia desde ${fromAccount.name}: ${concept}`
+      : `Transferencia desde ${fromAccount.name}`;
+    const descCom = `Comision de la transferencia de la cuenta ${fromAccount.name} a la cuenta ${toAccount.name} con concepto de: "${concept || ''}"`;
+
+    // Idempotency/dedup: if an identical set was created very recently, return it instead of duplicating
+    const recentSince = new Date(Date.now() - 2 * 60 * 1000); // 2 minutes window
+    const existingOut = await models.Transaction.findOne({
+      where: {
+        userId,
+        accountId: fromAccount.id,
+        categoryId: catOut.id,
+        amount: amt,
+        date,
+        description: descOut,
+        createdAt: { [Op.gte]: recentSince },
+      },
+      include: [{ model: models.Category, attributes: ['type'] }],
+      order: [['id', 'DESC']],
+      transaction: t,
+    });
+    const existingIn = await models.Transaction.findOne({
+      where: {
+        userId,
+        accountId: toAccount.id,
+        categoryId: catIn.id,
+        amount: amt,
+        date,
+        description: descIn,
+        createdAt: { [Op.gte]: recentSince },
+      },
+      include: [{ model: models.Category, attributes: ['type'] }],
+      order: [['id', 'DESC']],
+      transaction: t,
+    });
+    const existingCom = comm > 0 ? await models.Transaction.findOne({
+      where: {
+        userId,
+        accountId: fromAccount.id,
+        categoryId: catCommission.id,
+        amount: comm,
+        date,
+        description: descCom,
+        createdAt: { [Op.gte]: recentSince },
+      },
+      include: [{ model: models.Category, attributes: ['type'] }],
+      order: [['id', 'DESC']],
+      transaction: t,
+    }) : null;
+
+    if (existingOut && existingIn && ((comm > 0 && existingCom) || comm === 0)) {
+      const shape = (row) => ({
+        id: row.id,
+        description: row.description,
+        amount: row.amount,
+        currency: row.currency,
+        amountUsd: row.amountUsd,
+        exchangeRateUsed: row.exchangeRateUsed,
+        date: row.date,
+        categoryId: row.categoryId,
+        accountId: row.accountId,
+        type: row.Category?.type === 'ingreso' ? 'income' : 'expense',
+      });
+      return {
+        outTx: shape(existingOut),
+        inTx: shape(existingIn),
+        commissionTx: existingCom ? shape(existingCom) : null,
+      };
+    }
+
+    // 1) Expense from origin
+    const outTx = await createTransactionInT(t, userId, {
+      description: descOut,
+      amount: amt,
+      currency: fromAccount.currency,
       date,
-      categoryId,
-      accountId,
-      userId,
-    }, { transaction: t });
+      categoryId: catOut.id,
+      accountId: fromAccount.id,
+    });
 
-    return { tx: {
-      id: created.id,
-      description: created.description,
-      amount: created.amount,
-      currency: created.currency,
-      amountUsd: created.amountUsd,
-      exchangeRateUsed: created.exchangeRateUsed,
-      date: created.date,
-      categoryId: created.categoryId,
-      accountId: created.accountId,
-      type: categoryType === 'ingreso' ? 'income' : 'expense',
-    }};
+    // 2) Income to destination
+    const inTx = await createTransactionInT(t, userId, {
+      description: descIn,
+      amount: amt,
+      currency: toAccount.currency,
+      date,
+      categoryId: catIn.id,
+      accountId: toAccount.id,
+    });
+
+    // 3) Commission expense (if any)
+    let commissionTx = null;
+    if (comm && comm > 0) {
+      commissionTx = await createTransactionInT(t, userId, {
+        description: descCom,
+        amount: comm,
+        currency: fromAccount.currency,
+        date,
+        categoryId: catCommission.id,
+        accountId: fromAccount.id,
+      });
+    }
+
+    return {
+      outTx: outTx.tx,
+      inTx: inTx.tx,
+      commissionTx: commissionTx ? commissionTx.tx : null,
+    };
   });
 }
 
@@ -341,6 +504,7 @@ module.exports = {
   getAllTransactions,
   getGroupedTransactions,
   createTransaction,
+  createTransfer,
   updateTransaction,
   deleteTransaction,
 };

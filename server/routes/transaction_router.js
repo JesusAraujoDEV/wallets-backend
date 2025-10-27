@@ -40,6 +40,15 @@ router.post('/', async (req, res) => {
 	}
 });
 
+router.post('/transfer', async (req, res) => {
+	try {
+		const result = await txService.createTransfer(req.user.id, req.body);
+		res.status(201).json({ ok: true, transfer: result });
+	} catch (e) {
+		res.status(400).json({ ok: false, message: e.message });
+	}
+});
+
 router.patch('/', async (req, res) => {
 	try {
 		const id = parseInt(req.query.id, 10);
