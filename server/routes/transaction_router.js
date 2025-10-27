@@ -34,7 +34,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
 	try {
 		const result = await txService.createTransaction(req.user.id, req.body);
-		res.status(201).json({ ok: true, newId: result.tx.id, tx: result.tx });
+		res.status(201).json({ ok: true, newId: result.tx.id, tx: result.tx, commissionTx: result.commissionTx || null });
 	} catch (e) {
 		res.status(500).json({ ok: false, message: e.message });
 	}

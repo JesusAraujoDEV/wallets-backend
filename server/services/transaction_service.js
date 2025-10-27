@@ -256,7 +256,25 @@ async function createTransactionInT(t, userId, txData) {
 
 async function createTransaction(userId, txData) {
   return await sequelize.transaction(async (t) => {
-    return await createTransactionInT(t, userId, txData);
+    const main = await createTransactionInT(t, userId, txData);
+
+    const comm = Number(txData?.commission || 0);
+    let commissionTx = null;
+    if (comm && comm > 0) {
+      const catCommission = await findOrCreateCategoryByName(userId, 'comision', 'gasto', t, { icon: 'ReceiptText', color: '#6B7280', colorName: 'Gray' });
+      const descCom = `Comision de: ${txData.description}`;
+      const commission = await createTransactionInT(t, userId, {
+        description: descCom,
+        amount: comm,
+        currency: txData.currency,
+        date: txData.date,
+        categoryId: catCommission.id,
+        accountId: txData.accountId,
+      });
+      commissionTx = commission.tx;
+    }
+
+    return { tx: main.tx, commissionTx };
   });
 }
 
