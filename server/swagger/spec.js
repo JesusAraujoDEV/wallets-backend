@@ -25,7 +25,8 @@ const options = {
     },
     security: [{ bearerAuth: [] }],
   },
-  apis: ['server/routes/**/*.js'],
+  // Load JSDoc from files under server/swagger so all documentation lives in one place
+  apis: ['server/swagger/**/*.js'],
 };
 
 const swaggerSpec = swaggerJsdoc(options);
