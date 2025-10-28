@@ -43,8 +43,15 @@ async function remove(categoryId, userId) {
   const count = await models.Category.destroy({ where: { id: categoryId, userId } });
   return { rowCount: count };
 }
+async function listByIncludeInStats(userId, include) {
+  return await models.Category.findAll({
+    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['user_id', 'userId']],
+    where: { userId, includeInStats: !!include },
+    order: [['type', 'ASC'], ['name', 'ASC']],
+    raw: true,
+  });
+}
 
-module.exports = { list, create, update, remove };
 async function bulkSetIncludeInStats(userId, ids, value) {
   const uniqueIds = Array.from(new Set((ids || []).map((n) => parseInt(n, 10)).filter((n) => Number.isInteger(n) && n > 0)));
   if (uniqueIds.length === 0) return { rowCount: 0 };
@@ -55,4 +62,4 @@ async function bulkSetIncludeInStats(userId, ids, value) {
   return { rowCount: count };
 }
 
-module.exports = { list, create, update, remove, bulkSetIncludeInStats };
+module.exports = { list, create, update, remove, listByIncludeInStats, bulkSetIncludeInStats };

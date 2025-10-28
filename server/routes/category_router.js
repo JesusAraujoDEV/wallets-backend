@@ -9,6 +9,15 @@ router.use(protect);
 
 router.get('/', async (req, res) => {
 	try {
+		const param = req.query.includeInStats;
+		if (typeof param !== 'undefined') {
+			const v = String(param).toLowerCase();
+			const truthy = v === '1' || v === 'true' || v === 'yes';
+			const falsy = v === '0' || v === 'false' || v === 'no';
+			if (!truthy && !falsy) return res.status(400).json({ ok: false, message: 'includeInStats must be true/false or 1/0' });
+			const items = await categoryService.listByIncludeInStats(req.user.id, truthy);
+			return res.json(items);
+		}
 		const items = await categoryService.list(req.user.id);
 		res.json(items);
 	} catch (e) {
@@ -70,5 +79,7 @@ router.delete('/', validator(idQuerySchema, 'query'), async (req, res) => {
 			res.status(500).json({ ok: false, message: e.message });
 		}
 	});
+
+	// Note: filtering by includeInStats is handled via GET / with query param includeInStats=true|false
 
 module.exports = router;

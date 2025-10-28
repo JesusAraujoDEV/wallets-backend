@@ -57,6 +57,13 @@
  *   get:
  *     summary: Listar categorías del usuario
  *     tags: [Categories]
+ *     parameters:
+ *       - in: query
+ *         name: includeInStats
+ *         schema:
+ *           type: string
+ *           enum: ['true','false','1','0']
+ *         description: Filtrar por includeInStats (true/false)
  *     responses:
  *       200:
  *         description: Lista de categorías
@@ -154,6 +161,34 @@
  *               properties:
  *                 ok: { type: boolean }
  *                 rowCount: { type: integer }
+
+ * /categories/include-in-stats/enabled:
+ *   get:
+ *     summary: Listar categorías con include_in_stats = true
+ *     tags: [Categories]
+ *     responses:
+ *       200:
+ *         description: Lista de categorías incluidas en estadísticas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Category'
+
+ * /categories/include-in-stats/disabled:
+ *   get:
+ *     summary: Listar categorías con include_in_stats = false
+ *     tags: [Categories]
+ *     responses:
+ *       200:
+ *         description: Lista de categorías excluidas de estadísticas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Category'
  */
 
 module.exports = {};
