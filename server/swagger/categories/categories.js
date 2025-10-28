@@ -12,6 +12,9 @@
  *         type:
  *           type: string
  *           enum: [ingreso, gasto]
+ *         includeInStats:
+ *           type: boolean
+ *           description: Si la categoría participa en estadísticas
  *         userId:
  *           type: integer
  *       required: [id, name, type]
@@ -23,6 +26,9 @@
  *         type:
  *           type: string
  *           enum: [income, expense, ingreso, gasto]
+ *         includeInStats:
+ *           type: boolean
+ *           default: true
  *       required: [name, type]
  *     CategoryUpdate:
  *       type: object
@@ -32,6 +38,17 @@
  *         type:
  *           type: string
  *           enum: [income, expense, ingreso, gasto]
+ *         includeInStats:
+ *           type: boolean
+ *
+ *     CategoryIdsPayload:
+ *       type: object
+ *       properties:
+ *         ids:
+ *           type: array
+ *           items:
+ *             type: integer
+ *       required: [ids]
  */
 
 /**
@@ -95,6 +112,48 @@
  *     responses:
  *       200:
  *         description: Eliminación exitosa
+ *
+ * /categories/include-in-stats/enable:
+ *   post:
+ *     summary: Activar include_in_stats para múltiples categorías
+ *     tags: [Categories]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CategoryIdsPayload'
+ *     responses:
+ *       200:
+ *         description: Actualización realizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ok: { type: boolean }
+ *                 rowCount: { type: integer }
+ *
+ * /categories/include-in-stats/disable:
+ *   post:
+ *     summary: Desactivar include_in_stats para múltiples categorías
+ *     tags: [Categories]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CategoryIdsPayload'
+ *     responses:
+ *       200:
+ *         description: Actualización realizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ok: { type: boolean }
+ *                 rowCount: { type: integer }
  */
 
 module.exports = {};

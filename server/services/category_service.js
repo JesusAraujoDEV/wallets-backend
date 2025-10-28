@@ -45,3 +45,14 @@ async function remove(categoryId, userId) {
 }
 
 module.exports = { list, create, update, remove };
+async function bulkSetIncludeInStats(userId, ids, value) {
+  const uniqueIds = Array.from(new Set((ids || []).map((n) => parseInt(n, 10)).filter((n) => Number.isInteger(n) && n > 0)));
+  if (uniqueIds.length === 0) return { rowCount: 0 };
+  const [count] = await models.Category.update(
+    { includeInStats: !!value },
+    { where: { userId, id: uniqueIds } },
+  );
+  return { rowCount: count };
+}
+
+module.exports = { list, create, update, remove, bulkSetIncludeInStats };

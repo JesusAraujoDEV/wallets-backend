@@ -3,7 +3,7 @@ const router = express.Router();
 const { protect } = require('../middlewares/auth_handler');
 const categoryService = require('../services/category_service');
 const { validator } = require('../middlewares/validator');
-const { createCategorySchema, updateCategorySchema, idQuerySchema } = require('../schemas/category_schema');
+const { createCategorySchema, updateCategorySchema, idQuerySchema, bulkIncludeInStatsSchema } = require('../schemas/category_schema');
 
 router.use(protect);
 
@@ -48,5 +48,27 @@ router.delete('/', validator(idQuerySchema, 'query'), async (req, res) => {
 		res.status(500).json({ ok: false, message: e.message });
 	}
 });
+
+	// Bulk set include_in_stats = true
+	router.post('/include-in-stats/enable', validator(bulkIncludeInStatsSchema), async (req, res) => {
+		try {
+			const { ids } = req.body;
+			const r = await categoryService.bulkSetIncludeInStats(req.user.id, ids, true);
+			res.json({ ok: true, ...r });
+		} catch (e) {
+			res.status(500).json({ ok: false, message: e.message });
+		}
+	});
+
+	// Bulk set include_in_stats = false
+	router.post('/include-in-stats/disable', validator(bulkIncludeInStatsSchema), async (req, res) => {
+		try {
+			const { ids } = req.body;
+			const r = await categoryService.bulkSetIncludeInStats(req.user.id, ids, false);
+			res.json({ ok: true, ...r });
+		} catch (e) {
+			res.status(500).json({ ok: false, message: e.message });
+		}
+	});
 
 module.exports = router;
