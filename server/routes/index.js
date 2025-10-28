@@ -10,22 +10,22 @@ function buildApiRouter() {
   try {
     const authRouter = require('./auth_router');
     router.use('/auth', authRouter);
-  } catch {}
+  } catch (e) { console.error('Failed to mount /auth router:', e.message); }
 
   try {
     const accountRouter = require('./account_router');
     router.use('/accounts', accountRouter);
-  } catch {}
+  } catch (e) { console.error('Failed to mount /accounts router:', e.message); }
 
   try {
     const categoryRouter = require('./category_router');
     router.use('/categories', categoryRouter);
-  } catch {}
+  } catch (e) { console.error('Failed to mount /categories router:', e.message); }
 
   try {
     const transactionRouter = require('./transaction_router');
     router.use('/transactions', transactionRouter);
-  } catch {}
+  } catch (e) { console.error('Failed to mount /transactions router:', e.message); }
 
   return router;
 }

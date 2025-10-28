@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/auth_handler');
 const accountService = require('../services/account_service');
+const { validator } = require('../middlewares/validator');
+const { createAccountSchema, updateAccountSchema, idQuerySchema } = require('../schemas/account_schema');
 
 router.use(protect);
 
@@ -14,7 +16,7 @@ router.get('/', async (req, res) => {
 	}
 });
 
-router.post('/', async (req, res) => {
+router.post('/', validator(createAccountSchema), async (req, res) => {
 	try {
 		const created = await accountService.create(req.user.id, req.body);
 		res.status(201).json(created);
@@ -23,7 +25,7 @@ router.post('/', async (req, res) => {
 	}
 });
 
-router.patch('/', async (req, res) => {
+router.patch('/', validator(idQuerySchema, 'query'), validator(updateAccountSchema), async (req, res) => {
 	try {
 		const id = parseInt(req.query.id, 10);
 		if (!id) return res.status(400).json({ ok: false, message: 'Parámetro id inválido.' });
@@ -35,7 +37,7 @@ router.patch('/', async (req, res) => {
 	}
 });
 
-router.delete('/', async (req, res) => {
+router.delete('/', validator(idQuerySchema, 'query'), async (req, res) => {
 	try {
 		const id = parseInt(req.query.id, 10);
 		if (!id) return res.status(400).json({ ok: false, message: 'Parámetro id inválido.' });

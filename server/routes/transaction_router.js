@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middlewares/auth_handler');
 const txService = require('../services/transaction_service');
+const { validator } = require('../middlewares/validator');
+const { createTransactionSchema, transferSchema } = require('../schemas/transaction_schema');
 
 router.use(protect);
 router.get('/', async (req, res) => {
@@ -31,7 +33,7 @@ router.get('/', async (req, res) => {
 	}
 });
 
-router.post('/', async (req, res) => {
+router.post('/', validator(createTransactionSchema), async (req, res) => {
 	try {
 		const result = await txService.createTransaction(req.user.id, req.body);
 		res.status(201).json({ ok: true, newId: result.tx.id, tx: result.tx, commissionTx: result.commissionTx || null });
@@ -40,7 +42,7 @@ router.post('/', async (req, res) => {
 	}
 });
 
-router.post('/transfer', async (req, res) => {
+router.post('/transfer', validator(transferSchema), async (req, res) => {
 	try {
 		const result = await txService.createTransfer(req.user.id, req.body);
 		res.status(201).json({ ok: true, transfer: result });
