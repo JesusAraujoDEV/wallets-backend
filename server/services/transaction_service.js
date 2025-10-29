@@ -41,7 +41,7 @@ function monthToRange(monthStr) {
 }
 
 async function getAllTransactions(filters) {
-  const { userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month } = filters;
+  const { userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = filters;
   const whereTx = { userId };
   const accountIds = parseIdFilter(accountId);
   const categoryIds = parseIdFilter(categoryId);
@@ -62,6 +62,11 @@ async function getAllTransactions(filters) {
   const include = [];
   const catWhere = {};
   if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
+  if (typeof includeInStats !== 'undefined' && includeInStats !== null) {
+    const v = String(includeInStats).toLowerCase();
+    const bool = v === '1' || v === 'true' || v === 'yes' || includeInStats === true;
+    catWhere.includeInStats = bool;
+  }
   if (q) {
     whereTx[Op.or] = [
       { description: { [Op.iLike]: `%${q}%` } },
@@ -73,7 +78,7 @@ async function getAllTransactions(filters) {
     model: models.Category,
     attributes: ['type', 'name'],
     where: Object.keys(catWhere).length ? catWhere : undefined,
-    required: !!type,
+    required: Object.keys(catWhere).length > 0,
   });
 
   const rows = await models.Transaction.findAll({
@@ -100,7 +105,7 @@ async function getAllTransactions(filters) {
 }
 
 async function getGroupedTransactions(filters) {
-  const { userId, pageSize = 20, cursorDate, q, type, categoryId, accountId, date, dateFrom, dateTo, month } = filters;
+  const { userId, pageSize = 20, cursorDate, q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = filters;
   const whereTx = { userId };
   const accountIds = parseIdFilter(accountId);
   const categoryIds = parseIdFilter(categoryId);
@@ -128,16 +133,21 @@ async function getGroupedTransactions(filters) {
   const include = [];
   const catWhere = {};
   if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
+  if (typeof includeInStats !== 'undefined' && includeInStats !== null) {
+    const v = String(includeInStats).toLowerCase();
+    const bool = v === '1' || v === 'true' || v === 'yes' || includeInStats === true;
+    catWhere.includeInStats = bool;
+  }
   if (q) {
     whereTx[Op.or] = [
       { description: { [Op.iLike]: `%${q}%` } },
       sqWhere(col('Category.name'), { [Op.iLike]: `%${q}%` })
     ];
   }
-  include.push({ model: models.Category, attributes: ['type', 'name'], where: Object.keys(catWhere).length ? catWhere : undefined, required: !!type });
+  include.push({ model: models.Category, attributes: ['type', 'name'], where: Object.keys(catWhere).length ? catWhere : undefined, required: Object.keys(catWhere).length > 0 });
 
   // For day counts, avoid selecting Category columns to prevent GROUP BY issues
-  const includeDay = [{ model: models.Category, attributes: [], where: Object.keys(catWhere).length ? catWhere : undefined, required: !!type }];
+  const includeDay = [{ model: models.Category, attributes: [], where: Object.keys(catWhere).length ? catWhere : undefined, required: Object.keys(catWhere).length > 0 }];
   const dayRows = await models.Transaction.findAll({
     attributes: [[fn('DATE', col('Transaction.date')), 'day'], [fn('COUNT', col('Transaction.id')), 'tx_count']],
     where: whereTx,
@@ -166,7 +176,7 @@ async function getGroupedTransactions(filters) {
   const items = await models.Transaction.findAll({
     attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], 'date', ['category_id', 'categoryId'], ['account_id', 'accountId']],
     where: { ...whereTx, ...(days.length ? { date: { [Op.in]: days } } : {}) },
-    include: [{ model: models.Category, attributes: ['type'], required: true }],
+    include: [{ model: models.Category, attributes: ['type'], where: Object.keys(catWhere).length ? catWhere : undefined, required: Object.keys(catWhere).length > 0 }],
     order: [['date', 'DESC'], ['id', 'DESC']],
     raw: true,
     nest: true,

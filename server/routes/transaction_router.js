@@ -8,7 +8,7 @@ const { createTransactionSchema, transferSchema } = require('../schemas/transact
 router.use(protect);
 router.get('/', async (req, res) => {
 	const userId = req.user.id;
-	const { grouped, pageSize, cursorDate, q, type, categoryId, accountId, date, dateFrom, dateTo, month } = req.query;
+	const { grouped, pageSize, cursorDate, q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = req.query;
 	try {
 		if (grouped === '1') {
 			const result = await txService.getGroupedTransactions({
@@ -23,10 +23,11 @@ router.get('/', async (req, res) => {
 				dateFrom,
 				dateTo,
 				month,
+				includeInStats,
 			});
 			return res.json(result);
 		}
-		const rows = await txService.getAllTransactions({ userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month });
+		const rows = await txService.getAllTransactions({ userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
 		return res.json(rows);
 	} catch (e) {
 		res.status(500).json({ ok: false, message: 'Error del servidor al obtener transacciones.', error: e.message });
