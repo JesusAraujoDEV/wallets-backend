@@ -166,6 +166,12 @@
  *           pattern: "^\\d{4}-\\d{2}$"
  *         example: "2025-09"
  *         description: Mes a filtrar en formato YYYY-MM (si no hay dateFrom/dateTo)
+ *       - in: query
+ *         name: includeInStats
+ *         schema:
+ *           type: string
+ *           enum: ['0','1','true','false']
+ *         description: Filtra por si la categoría está marcada para estadísticas (true/false)
  *     responses:
  *       200:
  *         description: Lista de transacciones o respuesta agrupada por día

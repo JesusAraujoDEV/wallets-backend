@@ -527,10 +527,98 @@ async function deleteTransaction(txId, userId) {
   });
 }
 
+// Summary helpers
+function parseBoolish(val) {
+  if (val === undefined || val === null) return null;
+  const v = String(val).toLowerCase();
+  if (v === '1' || v === 'true' || v === 'yes') return true;
+  if (v === '0' || v === 'false' || v === 'no') return false;
+  return null;
+}
+
+function buildTxFilterWhere({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month }) {
+  const whereTx = { userId };
+  const accountIds = parseIdFilter(accountId);
+  const categoryIds = parseIdFilter(categoryId);
+  if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
+  if (categoryIds) whereTx.categoryId = categoryIds.length > 1 ? { [Op.in]: categoryIds } : categoryIds[0];
+
+  const monthRange = monthToRange(month);
+  const from = dateFrom || monthRange?.from || null;
+  const to = dateTo || monthRange?.to || null;
+  if (from || to) {
+    whereTx.date = {};
+    if (from) whereTx.date[Op.gte] = from;
+    if (to) whereTx.date[Op.lte] = to;
+  } else if (date) {
+    whereTx.date = date;
+  }
+  if (q) {
+    whereTx[Op.or] = [
+      { description: { [Op.iLike]: `%${q}%` } },
+      sqWhere(col('Category.name'), { [Op.iLike]: `%${q}%` })
+    ];
+  }
+  return whereTx;
+}
+
+async function getTransactionsSummary({ userId, type, q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats }) {
+  const whereTx = buildTxFilterWhere({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month });
+  const catWhere = {};
+  if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
+  const bool = parseBoolish(includeInStats);
+  if (bool !== null) catWhere.includeInStats = bool;
+
+  const sumRow = await models.Transaction.findOne({
+    attributes: [[fn('COALESCE', fn('SUM', col('Transaction.amount_usd')), 0), 'totalUsd']],
+    where: whereTx,
+    include: [{ model: models.Category, attributes: [], where: Object.keys(catWhere).length ? catWhere : undefined, required: Object.keys(catWhere).length > 0 }],
+    raw: true,
+  });
+  const total = Number(sumRow?.totalUsd || 0);
+
+  // Reuse existing list function ensuring the type filter is applied
+  const items = await getAllTransactions({ userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
+
+  if (type === 'income') {
+    return { income_total: total, transactions_income: items };
+  } else {
+    return { expense_total: total, transactions_expense: items };
+  }
+}
+
+async function getBalanceSummary({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats }) {
+  // Sum account balances converted to USD using today's rate
+  const accounts = await models.Account.findAll({ where: { userId }, raw: true });
+  const rate = await getVesPerUsdByDate();
+  let accounts_total_usd = 0;
+  for (const acc of accounts) {
+    const bal = Number(acc.balance || 0);
+    if (acc.currency === 'VES') accounts_total_usd += bal / Number(rate);
+    else accounts_total_usd += bal; // treat USD/USDT equivalent
+  }
+
+  // Income and expense totals in USD over the requested range
+  const income = await getTransactionsSummary({ userId, type: 'income', q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
+  const expense = await getTransactionsSummary({ userId, type: 'expense', q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
+  const income_total_usd = Number(income.income_total || 0);
+  const expense_total_usd = Number(expense.expense_total || 0);
+  const net_total_usd = income_total_usd - expense_total_usd;
+
+  return {
+    accounts_total_usd,
+    income_total_usd,
+    expense_total_usd,
+    net_total_usd,
+  };
+}
+
 module.exports = {
   getVesPerUsdByDate,
   getAllTransactions,
   getGroupedTransactions,
+  getTransactionsSummary,
+  getBalanceSummary,
   createTransaction,
   createTransfer,
   updateTransaction,

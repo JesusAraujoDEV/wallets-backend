@@ -1,0 +1,44 @@
+const express = require('express');
+const router = express.Router();
+const { protect } = require('../middlewares/auth_handler');
+const txService = require('../services/transaction_service');
+
+router.use(protect);
+
+// GET /summary/balance
+router.get('/balance', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = req.query;
+    const result = await txService.getBalanceSummary({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
+    res.json({ ok: true, balance: result });
+  } catch (e) {
+    res.status(500).json({ ok: false, message: e.message });
+  }
+});
+
+// GET /summary/income
+router.get('/income', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = req.query;
+    const result = await txService.getTransactionsSummary({ userId, type: 'income', q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(500).json({ ok: false, message: e.message });
+  }
+});
+
+// GET /summary/expense
+router.get('/expense', async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = req.query;
+    const result = await txService.getTransactionsSummary({ userId, type: 'expense', q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
+    res.json({ ok: true, ...result });
+  } catch (e) {
+    res.status(500).json({ ok: false, message: e.message });
+  }
+});
+
+module.exports = router;

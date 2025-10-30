@@ -27,6 +27,11 @@ function buildApiRouter() {
     router.use('/transactions', transactionRouter);
   } catch (e) { console.error('Failed to mount /transactions router:', e.message); }
 
+  try {
+    const summaryRouter = require('./summary_router');
+    router.use('/summary', summaryRouter);
+  } catch (e) { console.error('Failed to mount /summary router:', e.message); }
+
   return router;
 }
 
