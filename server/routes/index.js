@@ -32,6 +32,11 @@ function buildApiRouter() {
     router.use('/summary', summaryRouter);
   } catch (e) { console.error('Failed to mount /summary router:', e.message); }
 
+  try {
+    const statusRouter = require('./status_router');
+    router.use('/status', statusRouter);
+  } catch (e) { console.error('Failed to mount /status router:', e.message); }
+
   return router;
 }
 
