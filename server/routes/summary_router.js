@@ -11,7 +11,15 @@ router.get('/balance', async (req, res) => {
     const userId = req.user.id;
     const { q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = req.query;
     const result = await txService.getBalanceSummary({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
-    res.json({ ok: true, balance: result });
+    if (result.single) {
+      return res.json({ ok: true, balance: result.balance_usd });
+    }
+    res.json({ ok: true, balance: {
+      accounts_total_usd: result.accounts_total_usd,
+      income_total_usd: result.income_total_usd,
+      expense_total_usd: result.expense_total_usd,
+      net_total_usd: result.net_total_usd,
+    }});
   } catch (e) {
     res.status(500).json({ ok: false, message: e.message });
   }

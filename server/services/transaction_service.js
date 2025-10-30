@@ -588,9 +588,26 @@ async function getTransactionsSummary({ userId, type, q, categoryId, accountId, 
 }
 
 async function getBalanceSummary({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats }) {
-  // Sum account balances converted to USD using today's rate
-  const accounts = await models.Account.findAll({ where: { userId }, raw: true });
+  const ids = parseIdFilter(accountId);
+  const whereAcc = { userId };
+  if (ids && ids.length > 0) whereAcc.id = ids.length > 1 ? { [Op.in]: ids } : ids[0];
+
+  // Fetch accounts (filtered if ids present)
+  const accounts = await models.Account.findAll({ where: whereAcc, raw: true });
   const rate = await getVesPerUsdByDate();
+
+  // If a single account id is provided, return only that account's USD balance in a simplified shape
+  if (ids && ids.length === 1) {
+    const acc = accounts.find(a => Number(a.id) === Number(ids[0]));
+    if (!acc) {
+      return { single: true, balance_usd: 0 };
+    }
+    const bal = Number(acc.balance || 0);
+    const balance_usd = acc.currency === 'VES' ? bal / Number(rate) : bal;
+    return { single: true, balance_usd };
+  }
+
+  // Otherwise sum account balances converted to USD
   let accounts_total_usd = 0;
   for (const acc of accounts) {
     const bal = Number(acc.balance || 0);
@@ -606,6 +623,7 @@ async function getBalanceSummary({ userId, q, categoryId, accountId, date, dateF
   const net_total_usd = income_total_usd - expense_total_usd;
 
   return {
+    single: false,
     accounts_total_usd,
     income_total_usd,
     expense_total_usd,

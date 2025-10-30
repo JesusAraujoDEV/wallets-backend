@@ -23,7 +23,7 @@
  *         name: accountId
  *         schema:
  *           type: string
- *         description: IDs de cuentas separadas por coma
+ *         description: IDs de cuentas separadas por coma; si se envía un único ID, la respuesta será simplificada con solo el balance de esa cuenta
  *       - in: query
  *         name: date
  *         schema:
@@ -60,21 +60,31 @@
  *         description: Balance calculado
  *         content:
  *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 ok:
- *                   type: boolean
- *                 balance:
+ *             oneOf:
+ *               - description: Respuesta agregada (todas las cuentas o múltiples IDs)
+ *                 schema:
  *                   type: object
  *                   properties:
- *                     accounts_total_usd:
- *                       type: number
- *                     income_total_usd:
- *                       type: number
- *                     expense_total_usd:
- *                       type: number
- *                     net_total_usd:
+ *                     ok:
+ *                       type: boolean
+ *                     balance:
+ *                       type: object
+ *                       properties:
+ *                         accounts_total_usd:
+ *                           type: number
+ *                         income_total_usd:
+ *                           type: number
+ *                         expense_total_usd:
+ *                           type: number
+ *                         net_total_usd:
+ *                           type: number
+ *               - description: Respuesta simplificada (un solo accountId)
+ *                 schema:
+ *                   type: object
+ *                   properties:
+ *                     ok:
+ *                       type: boolean
+ *                     balance:
  *                       type: number
  *
  * /summary/income:
