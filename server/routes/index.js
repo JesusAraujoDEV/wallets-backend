@@ -37,6 +37,11 @@ function buildApiRouter() {
     router.use('/status', statusRouter);
   } catch (e) { console.error('Failed to mount /status router:', e.message); }
 
+  try {
+    const statsRouter = require('./stats_router');
+    router.use('/stats', statsRouter);
+  } catch (e) { console.error('Failed to mount /stats router:', e.message); }
+
   return router;
 }
 
