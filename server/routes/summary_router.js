@@ -31,7 +31,7 @@ router.get('/income', async (req, res) => {
     const userId = req.user.id;
     const { from_month, to_month, includeInStats, q, categoryId, accountId, date, dateFrom, dateTo, month } = req.query;
     if (from_month) {
-      const result = await txService.getMonthlySummary({ userId, type: 'income', fromMonth: from_month, toMonth: to_month, includeInStats });
+      const result = await txService.getMonthlySummary({ userId, type: 'income', fromMonth: from_month, toMonth: to_month, includeInStats, categoryId, accountId });
       return res.json({ ok: true, ...result });
     }
     // Fallback: total income without monthly breakdown
@@ -48,7 +48,7 @@ router.get('/expense', async (req, res) => {
     const userId = req.user.id;
     const { from_month, to_month, includeInStats, q, categoryId, accountId, date, dateFrom, dateTo, month } = req.query;
     if (from_month) {
-      const result = await txService.getMonthlySummary({ userId, type: 'expense', fromMonth: from_month, toMonth: to_month, includeInStats });
+      const result = await txService.getMonthlySummary({ userId, type: 'expense', fromMonth: from_month, toMonth: to_month, includeInStats, categoryId, accountId });
       return res.json({ ok: true, ...result });
     }
     // Fallback: total expense without monthly breakdown

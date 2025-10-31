@@ -665,7 +665,7 @@ function monthsBetweenList(fromMonth, toMonth) {
   return out;
 }
 
-async function getMonthlySummary({ userId, type, fromMonth, toMonth, includeInStats }) {
+async function getMonthlySummary({ userId, type, fromMonth, toMonth, includeInStats, categoryId, accountId }) {
   const range = monthRangeInclusive(fromMonth, toMonth);
   if (!range) throw new Error('Parámetros from_month/to_month inválidos. Formato esperado YYYY-MM y from <= to.');
 
@@ -674,12 +674,19 @@ async function getMonthlySummary({ userId, type, fromMonth, toMonth, includeInSt
   const bool = parseBoolish(includeInStats);
   if (bool !== null) catWhere.includeInStats = bool;
 
+  // Build tx where with optional filters
+  const whereTx = { userId, date: { [Op.gte]: range.from, [Op.lte]: range.to } };
+  const accountIds = parseIdFilter(accountId);
+  const categoryIds = parseIdFilter(categoryId);
+  if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
+  if (categoryIds) whereTx.categoryId = categoryIds.length > 1 ? { [Op.in]: categoryIds } : categoryIds[0];
+
   const rows = await models.Transaction.findAll({
     attributes: [
       [fn('date_trunc', 'month', col('Transaction.date')), 'month_dt'],
       [fn('COALESCE', fn('SUM', col('Transaction.amount_usd')), 0), 'sum_usd'],
     ],
-    where: { userId, date: { [Op.gte]: range.from, [Op.lte]: range.to } },
+    where: whereTx,
     include: [{ model: models.Category, attributes: [], where: Object.keys(catWhere).length ? catWhere : undefined, required: true }],
     group: [fn('date_trunc', 'month', col('Transaction.date'))],
     order: [[fn('date_trunc', 'month', col('Transaction.date')), 'ASC']],

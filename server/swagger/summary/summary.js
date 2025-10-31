@@ -54,6 +54,16 @@
  *         schema:
  *           type: string
  *           enum: ['0','1','true','false']
+ *       - in: query
+ *         name: categoryId
+ *         schema:
+ *           type: string
+ *         description: IDs de categorías separados por coma para filtrar (ej. "44,20,43")
+ *       - in: query
+ *         name: accountId
+ *         schema:
+ *           type: string
+ *         description: IDs de cuentas separados por coma para filtrar
  *         description: Aplica al calculo de ingresos y gastos
  *     responses:
  *       200:
@@ -109,6 +119,16 @@
  *         schema:
  *           type: string
  *           enum: ['0','1','true','false']
+ *       - in: query
+ *         name: categoryId
+ *         schema:
+ *           type: string
+ *         description: IDs de categorías separados por coma para filtrar (ej. "44,20,43")
+ *       - in: query
+ *         name: accountId
+ *         schema:
+ *           type: string
+ *         description: IDs de cuentas separados por coma para filtrar
  *     responses:
  *       200:
  *         description: Total y mapa mensual de ingresos o solo el total si no se envían meses
