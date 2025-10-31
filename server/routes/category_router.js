@@ -9,17 +9,33 @@ router.use(protect);
 
 router.get('/', async (req, res) => {
 	try {
-		const param = req.query.includeInStats;
-		if (typeof param !== 'undefined') {
-			const v = String(param).toLowerCase();
+		const includeInStatsParam = req.query.includeInStats;
+		const typeParam = req.query.type; // income|expense|ingreso|gasto
+
+		let includeInStatsBool;
+		if (typeof includeInStatsParam !== 'undefined') {
+			const v = String(includeInStatsParam).toLowerCase();
 			const truthy = v === '1' || v === 'true' || v === 'yes';
 			const falsy = v === '0' || v === 'false' || v === 'no';
 			if (!truthy && !falsy) return res.status(400).json({ ok: false, message: 'includeInStats must be true/false or 1/0' });
-			const items = await categoryService.listByIncludeInStats(req.user.id, truthy);
+			includeInStatsBool = truthy;
+		}
+
+		let typeFilter;
+		if (typeof typeParam !== 'undefined') {
+			const t = String(typeParam).toLowerCase();
+			const allowed = new Set(['income', 'expense', 'ingreso', 'gasto']);
+			if (!allowed.has(t)) return res.status(400).json({ ok: false, message: 'type must be one of income|expense|ingreso|gasto' });
+			typeFilter = t;
+		}
+
+		if (typeof includeInStatsBool === 'boolean' || typeof typeFilter === 'string') {
+			const items = await categoryService.listFiltered(req.user.id, { includeInStats: includeInStatsBool, type: typeFilter });
 			return res.json(items);
 		}
+
 		const items = await categoryService.list(req.user.id);
-		res.json(items);
+		return res.json(items);
 	} catch (e) {
 		res.status(500).json({ ok: false, message: e.message });
 	}

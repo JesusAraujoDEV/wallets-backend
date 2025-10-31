@@ -52,6 +52,18 @@ async function listByIncludeInStats(userId, include) {
   });
 }
 
+async function listFiltered(userId, { includeInStats, type } = {}) {
+  const where = { userId };
+  if (typeof includeInStats === 'boolean') where.includeInStats = includeInStats;
+  if (typeof type !== 'undefined' && type !== null) where.type = normalizeType(type);
+  return await models.Category.findAll({
+    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['user_id', 'userId']],
+    where,
+    order: [['type', 'ASC'], ['name', 'ASC']],
+    raw: true,
+  });
+}
+
 async function bulkSetIncludeInStats(userId, ids, value) {
   const uniqueIds = Array.from(new Set((ids || []).map((n) => parseInt(n, 10)).filter((n) => Number.isInteger(n) && n > 0)));
   if (uniqueIds.length === 0) return { rowCount: 0 };
@@ -62,4 +74,4 @@ async function bulkSetIncludeInStats(userId, ids, value) {
   return { rowCount: count };
 }
 
-module.exports = { list, create, update, remove, listByIncludeInStats, bulkSetIncludeInStats };
+module.exports = { list, create, update, remove, listByIncludeInStats, bulkSetIncludeInStats, listFiltered };

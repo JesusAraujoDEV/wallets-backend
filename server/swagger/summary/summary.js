@@ -89,41 +89,21 @@
  *
  * /summary/income:
  *   get:
- *     summary: Resumen de ingresos
+ *     summary: Resumen de ingresos por mes o total
  *     tags: [Summary]
  *     parameters:
  *       - in: query
- *         name: q
- *         schema:
- *           type: string
- *       - in: query
- *         name: categoryId
- *         schema:
- *           type: string
- *       - in: query
- *         name: accountId
- *         schema:
- *           type: string
- *       - in: query
- *         name: date
- *         schema:
- *           type: string
- *           format: date
- *       - in: query
- *         name: dateFrom
- *         schema:
- *           type: string
- *           format: date
- *       - in: query
- *         name: dateTo
- *         schema:
- *           type: string
- *           format: date
- *       - in: query
- *         name: month
+ *         name: from_month
  *         schema:
  *           type: string
  *           pattern: "^\\d{4}-\\d{2}$"
+ *         description: Mes inicial (YYYY-MM). Si no se envía, se devuelve solo el total
+ *       - in: query
+ *         name: to_month
+ *         schema:
+ *           type: string
+ *           pattern: "^\\d{4}-\\d{2}$"
+ *         description: Mes final (YYYY-MM), inclusive. Si no se envía, se usa from_month
  *       - in: query
  *         name: includeInStats
  *         schema:
@@ -131,58 +111,49 @@
  *           enum: ['0','1','true','false']
  *     responses:
  *       200:
- *         description: Total y lista de ingresos
+ *         description: Total y mapa mensual de ingresos o solo el total si no se envían meses
  *         content:
  *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 ok:
- *                   type: boolean
- *                 income_total:
- *                   type: number
- *                 transactions_income:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Transaction'
+ *             oneOf:
+ *               - description: Resumen mensual
+ *                 schema:
+ *                   type: object
+ *                   properties:
+ *                     ok:
+ *                       type: boolean
+ *                     income_total:
+ *                       type: number
+ *                     income:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                       description: Objeto con claves income_YYYY-MM y sus totales
+ *               - description: Solo total (sin meses)
+ *                 schema:
+ *                   type: object
+ *                   properties:
+ *                     ok:
+ *                       type: boolean
+ *                     income_total:
+ *                       type: number
  *
  * /summary/expense:
  *   get:
- *     summary: Resumen de gastos
+ *     summary: Resumen de gastos por mes o total
  *     tags: [Summary]
  *     parameters:
  *       - in: query
- *         name: q
- *         schema:
- *           type: string
- *       - in: query
- *         name: categoryId
- *         schema:
- *           type: string
- *       - in: query
- *         name: accountId
- *         schema:
- *           type: string
- *       - in: query
- *         name: date
- *         schema:
- *           type: string
- *           format: date
- *       - in: query
- *         name: dateFrom
- *         schema:
- *           type: string
- *           format: date
- *       - in: query
- *         name: dateTo
- *         schema:
- *           type: string
- *           format: date
- *       - in: query
- *         name: month
+ *         name: from_month
  *         schema:
  *           type: string
  *           pattern: "^\\d{4}-\\d{2}$"
+ *         description: Mes inicial (YYYY-MM). Si no se envía, se devuelve solo el total
+ *       - in: query
+ *         name: to_month
+ *         schema:
+ *           type: string
+ *           pattern: "^\\d{4}-\\d{2}$"
+ *         description: Mes final (YYYY-MM), inclusive. Si no se envía, se usa from_month
  *       - in: query
  *         name: includeInStats
  *         schema:
@@ -190,20 +161,31 @@
  *           enum: ['0','1','true','false']
  *     responses:
  *       200:
- *         description: Total y lista de gastos
+ *         description: Total y mapa mensual de gastos o solo el total si no se envían meses
  *         content:
  *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 ok:
- *                   type: boolean
- *                 expense_total:
- *                   type: number
- *                 transactions_expense:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Transaction'
+ *             oneOf:
+ *               - description: Resumen mensual
+ *                 schema:
+ *                   type: object
+ *                   properties:
+ *                     ok:
+ *                       type: boolean
+ *                     expense_total:
+ *                       type: number
+ *                     expense:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                       description: Objeto con claves expense_YYYY-MM y sus totales
+ *               - description: Solo total (sin meses)
+ *                 schema:
+ *                   type: object
+ *                   properties:
+ *                     ok:
+ *                       type: boolean
+ *                     expense_total:
+ *                       type: number
  */
 
 // file exists only to host Swagger JSDoc comments for /summary endpoints

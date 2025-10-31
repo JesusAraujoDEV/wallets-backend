@@ -631,11 +631,90 @@ async function getBalanceSummary({ userId, q, categoryId, accountId, date, dateF
   };
 }
 
+function parseMonthStr(m) {
+  if (!m || typeof m !== 'string') return null;
+  const m2 = m.trim();
+  const match = m2.match(/^\d{4}-\d{2}$/);
+  if (!match) return null;
+  const [y, mo] = m2.split('-').map(n => parseInt(n, 10));
+  if (mo < 1 || mo > 12) return null;
+  return { y, mo };
+}
+
+function monthRangeInclusive(fromMonth, toMonth) {
+  const a = parseMonthStr(fromMonth);
+  const b = toMonth ? parseMonthStr(toMonth) : a;
+  if (!a || !b) return null;
+  const fromDate = new Date(Date.UTC(a.y, a.mo - 1, 1));
+  const toDate = new Date(Date.UTC(b.y, b.mo, 0));
+  if (toDate < fromDate) return null;
+  return { from: fromDate.toISOString().slice(0, 10), to: toDate.toISOString().slice(0, 10) };
+}
+
+function monthsBetweenList(fromMonth, toMonth) {
+  const a = parseMonthStr(fromMonth);
+  const b = toMonth ? parseMonthStr(toMonth) : a;
+  if (!a || !b) return [];
+  const out = [];
+  let y = a.y, m = a.mo;
+  while (y < b.y || (y === b.y && m <= b.mo)) {
+    out.push(`${y}-${String(m).padStart(2, '0')}`);
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  return out;
+}
+
+async function getMonthlySummary({ userId, type, fromMonth, toMonth, includeInStats }) {
+  const range = monthRangeInclusive(fromMonth, toMonth);
+  if (!range) throw new Error('Parámetros from_month/to_month inválidos. Formato esperado YYYY-MM y from <= to.');
+
+  const catWhere = {};
+  if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
+  const bool = parseBoolish(includeInStats);
+  if (bool !== null) catWhere.includeInStats = bool;
+
+  const rows = await models.Transaction.findAll({
+    attributes: [
+      [fn('date_trunc', 'month', col('Transaction.date')), 'month_dt'],
+      [fn('COALESCE', fn('SUM', col('Transaction.amount_usd')), 0), 'sum_usd'],
+    ],
+    where: { userId, date: { [Op.gte]: range.from, [Op.lte]: range.to } },
+    include: [{ model: models.Category, attributes: [], where: Object.keys(catWhere).length ? catWhere : undefined, required: true }],
+    group: [fn('date_trunc', 'month', col('Transaction.date'))],
+    order: [[fn('date_trunc', 'month', col('Transaction.date')), 'ASC']],
+    raw: true,
+  });
+
+  const months = monthsBetweenList(fromMonth, toMonth);
+  const map = {};
+  for (const m of months) map[m] = 0;
+  for (const r of rows) {
+    const dt = r.month_dt instanceof Date ? r.month_dt : new Date(r.month_dt);
+    const ym = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}`;
+    map[ym] = Number(r.sum_usd || 0);
+  }
+
+  const prefix = type === 'income' ? 'income_' : 'expense_';
+  const obj = {};
+  let total = 0;
+  for (const m of months) {
+    obj[`${prefix}${m}`] = map[m] || 0;
+    total += map[m] || 0;
+  }
+
+  if (type === 'income') {
+    return { income_total: total, income: [obj] };
+  }
+  return { expense_total: total, expense: [obj] };
+}
+
 module.exports = {
   getVesPerUsdByDate,
   getAllTransactions,
   getGroupedTransactions,
   getTransactionsSummary,
+  getMonthlySummary,
   getBalanceSummary,
   createTransaction,
   createTransfer,

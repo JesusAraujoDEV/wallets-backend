@@ -64,6 +64,12 @@
  *           type: string
  *           enum: ['true','false','1','0']
  *         description: Filtrar por includeInStats (true/false)
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: ['income','expense','ingreso','gasto']
+ *         description: Filtrar por tipo de categoría
  *     responses:
  *       200:
  *         description: Lista de categorías

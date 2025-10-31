@@ -29,9 +29,14 @@ router.get('/balance', async (req, res) => {
 router.get('/income', async (req, res) => {
   try {
     const userId = req.user.id;
-    const { q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = req.query;
-    const result = await txService.getTransactionsSummary({ userId, type: 'income', q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
-    res.json({ ok: true, ...result });
+    const { from_month, to_month, includeInStats, q, categoryId, accountId, date, dateFrom, dateTo, month } = req.query;
+    if (from_month) {
+      const result = await txService.getMonthlySummary({ userId, type: 'income', fromMonth: from_month, toMonth: to_month, includeInStats });
+      return res.json({ ok: true, ...result });
+    }
+    // Fallback: total income without monthly breakdown
+    const totalRes = await txService.getTransactionsSummary({ userId, type: 'income', q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
+    return res.json({ ok: true, income_total: totalRes.income_total });
   } catch (e) {
     res.status(500).json({ ok: false, message: e.message });
   }
@@ -41,9 +46,14 @@ router.get('/income', async (req, res) => {
 router.get('/expense', async (req, res) => {
   try {
     const userId = req.user.id;
-    const { q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = req.query;
-    const result = await txService.getTransactionsSummary({ userId, type: 'expense', q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
-    res.json({ ok: true, ...result });
+    const { from_month, to_month, includeInStats, q, categoryId, accountId, date, dateFrom, dateTo, month } = req.query;
+    if (from_month) {
+      const result = await txService.getMonthlySummary({ userId, type: 'expense', fromMonth: from_month, toMonth: to_month, includeInStats });
+      return res.json({ ok: true, ...result });
+    }
+    // Fallback: total expense without monthly breakdown
+    const totalRes = await txService.getTransactionsSummary({ userId, type: 'expense', q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
+    return res.json({ ok: true, expense_total: totalRes.expense_total });
   } catch (e) {
     res.status(500).json({ ok: false, message: e.message });
   }
