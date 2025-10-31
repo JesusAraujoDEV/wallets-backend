@@ -114,6 +114,20 @@
  *         description: Total y mapa mensual de ingresos o solo el total si no se envían meses
  *         content:
  *           application/json:
+ *             examples:
+ *               monthly:
+ *                 summary: Ejemplo mensual
+ *                 value:
+ *                   ok: true
+ *                   income_total: 1091.71
+ *                   income:
+ *                     - income_2025-09: 106.36
+ *                       income_2025-10: 985.35
+ *               totalOnly:
+ *                 summary: Ejemplo solo total
+ *                 value:
+ *                   ok: true
+ *                   income_total: 1091.71
  *             oneOf:
  *               - description: Resumen mensual
  *                 schema:
@@ -128,6 +142,15 @@
  *                       items:
  *                         type: object
  *                       description: Objeto con claves income_YYYY-MM y sus totales
+ *                 examples:
+ *                   monthly:
+ *                     summary: Ejemplo mensual
+ *                     value:
+ *                       ok: true
+ *                       income_total: 1091.71
+ *                       income:
+ *                         - income_2025-09: 106.36
+ *                           income_2025-10: 985.35
  *               - description: Solo total (sin meses)
  *                 schema:
  *                   type: object
@@ -136,6 +159,12 @@
  *                       type: boolean
  *                     income_total:
  *                       type: number
+ *                 examples:
+ *                   totalOnly:
+ *                     summary: Ejemplo solo total
+ *                     value:
+ *                       ok: true
+ *                       income_total: 1091.71
  *
  * /summary/expense:
  *   get:
@@ -164,6 +193,20 @@
  *         description: Total y mapa mensual de gastos o solo el total si no se envían meses
  *         content:
  *           application/json:
+ *             examples:
+ *               monthly:
+ *                 summary: Ejemplo mensual
+ *                 value:
+ *                   ok: true
+ *                   expense_total: 845.22
+ *                   expense:
+ *                     - expense_2025-09: 120.10
+ *                       expense_2025-10: 725.12
+ *               totalOnly:
+ *                 summary: Ejemplo solo total
+ *                 value:
+ *                   ok: true
+ *                   expense_total: 845.22
  *             oneOf:
  *               - description: Resumen mensual
  *                 schema:
@@ -178,6 +221,15 @@
  *                       items:
  *                         type: object
  *                       description: Objeto con claves expense_YYYY-MM y sus totales
+ *                 examples:
+ *                   monthly:
+ *                     summary: Ejemplo mensual
+ *                     value:
+ *                       ok: true
+ *                       expense_total: 845.22
+ *                       expense:
+ *                         - expense_2025-09: 120.10
+ *                           expense_2025-10: 725.12
  *               - description: Solo total (sin meses)
  *                 schema:
  *                   type: object
@@ -186,6 +238,12 @@
  *                       type: boolean
  *                     expense_total:
  *                       type: number
+ *                 examples:
+ *                   totalOnly:
+ *                     summary: Ejemplo solo total
+ *                     value:
+ *                       ok: true
+ *                       expense_total: 845.22
  */
 
 // file exists only to host Swagger JSDoc comments for /summary endpoints
