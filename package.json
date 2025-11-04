@@ -4,7 +4,8 @@
   "description": "Backend for the Wallets personal finance application",
   "main": "server/server.js",
   "scripts": {
-    "start": "node server/server.js",
+  "prestart": "npx puppeteer browsers install chrome || true",
+  "start": "node server/server.js",
     "dev": "nodemon server/server.js",
     "start:legacy": "node index.js",
     "build": "npx puppeteer browsers install chrome",
