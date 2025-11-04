@@ -1,5 +1,5 @@
 const txService = require('../services/transaction_service');
-const { buildTransfersExport } = require('../services/export_service');
+const { buildTransfersExport, buildTransactionsListExport } = require('../services/export_service');
 const { BadRequestError, NotFoundError } = require('../utils/errors');
 
 async function list(req, res, next) {
@@ -65,16 +65,29 @@ async function exportTransfers(req, res, next) {
   try {
     const userId = req.user.id;
     const payload = req.method === 'GET' ? req.query : req.body;
-    const format = (payload.format || 'xlsx').toLowerCase();
+  const format = String((payload && payload.format) || (req.query && req.query.format) || 'xlsx').toLowerCase();
     const fromDate = payload.from_date;
     const toDate = payload.to_date;
     const accountId = payload.account_id || payload.accountId;
     const includeCommission = String(payload.include_commission || payload.includeCommission || 'false').toLowerCase() === 'true';
 
     const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    if (format !== 'xlsx' && format !== 'pdf') throw new BadRequestError('Formato inválido. Use pdf o xlsx');
+
+    // EPIC: if the client posts a transactions JSON (items, accounts, categories), render a fancy PDF directly
+    if (req.method === 'POST' && Array.isArray(payload?.items)) {
+      if (format !== 'pdf') throw new BadRequestError('Sólo PDF soportado para la plantilla de transacciones. Use format=pdf');
+      const { contentType, filename, stream } = await buildTransactionsListExport({ data: payload, format });
+      res.set('Cache-Control', 'no-store');
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+      stream.on('error', () => { if (!res.headersSent) res.status(500); res.end(); });
+      return stream.pipe(res);
+    }
+
+    // Default transfers export flow
     if (fromDate && !dateRe.test(fromDate)) throw new BadRequestError('from_date inválida. Use YYYY-MM-DD');
     if (toDate && !dateRe.test(toDate)) throw new BadRequestError('to_date inválida. Use YYYY-MM-DD');
-    if (format !== 'xlsx' && format !== 'pdf') throw new BadRequestError('Formato inválido. Use pdf o xlsx');
 
     const { contentType, filename, stream } = await buildTransfersExport({
       userId,

@@ -15,12 +15,12 @@ router.patch('/', validator(idQuerySchema, 'query'), validator(updateCategorySch
 
 router.delete('/', validator(idQuerySchema, 'query'), categoryCtrl.remove);
 
-	// Bulk set include_in_stats = true
-	router.post('/include-in-stats/enable', validator(bulkIncludeInStatsSchema), (req, _res, next) => { req.body.value = true; next(); }, categoryCtrl.bulkIncludeInStats);
+// Bulk set include_in_stats = true
+router.post('/include-in-stats/enable', validator(bulkIncludeInStatsSchema), (req, _res, next) => { req.body.value = true; next(); }, categoryCtrl.bulkIncludeInStats);
 
-	// Bulk set include_in_stats = false
-	router.post('/include-in-stats/disable', validator(bulkIncludeInStatsSchema), (req, _res, next) => { req.body.value = false; next(); }, categoryCtrl.bulkIncludeInStats);
+// Bulk set include_in_stats = false
+router.post('/include-in-stats/disable', validator(bulkIncludeInStatsSchema), (req, _res, next) => { req.body.value = false; next(); }, categoryCtrl.bulkIncludeInStats);
 
-	// Note: filtering by includeInStats is handled via GET / with query param includeInStats=true|false
+// Note: filtering by includeInStats is handled via GET / with query param includeInStats=true|false
 
 module.exports = router;

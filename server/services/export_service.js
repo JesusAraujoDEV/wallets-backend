@@ -66,6 +66,116 @@ function renderTransfersHtml(rows) {
   </html>`;
 }
 
+// --- New: Transactions List (EPIC) HTML ---
+function renderTransactionsListHtml({ items = [], accounts = [], categories = [], title = 'Transactions', createdBy = '' }) {
+  const css = `
+    * { box-sizing: border-box; }
+    body { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji','Segoe UI Emoji'; color: #111827; margin: 24px; }
+    header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+    h1 { font-size: 20px; margin: 0; color: #111827; }
+    .meta { font-size: 12px; color: #6B7280; }
+    .day { display:flex; align-items:center; gap:8px; margin: 22px 0 10px; color:#374151; }
+    .day .line { flex:1; height:1px; background:#E5E7EB; }
+    .badge { display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:999px; background:#F3F4F6; color:#374151; font-size:11px; }
+    .list { display:flex; flex-direction:column; gap:10px; }
+    .item { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:12px; border:1px solid #E5E7EB; background:#FFFFFF; }
+    .icon { width:28px; height:28px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:14px; }
+    .icon.income { background:#ECFDF5; color:#059669; }
+    .icon.expense { background:#FEF2F2; color:#DC2626; }
+    .stack { flex:1; }
+    .title { font-size:13px; color:#111827; margin:0 0 2px 0; }
+    .sub { display:flex; gap:8px; align-items:center; color:#6B7280; font-size:11px; }
+    .pill { display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:999px; font-size:11px; border:1px solid #E5E7EB; color:#374151; }
+    .category { border:1px solid #E5E7EB; }
+    .amount { text-align:right; }
+    .amount .main { font-weight:600; font-variant-numeric: tabular-nums; }
+    .amount .usd { color:#6B7280; font-size:11px; }
+  `;
+  const escape = (s) => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const nfVE = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const nfUS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const accById = new Map(accounts.map(a => [Number(a.id), a]));
+  const catById = new Map(categories.map(c => [Number(c.id), c]));
+
+  // group items by date desc
+  const groups = new Map();
+  for (const it of items) {
+    const d = it.date;
+    if (!groups.has(d)) groups.set(d, []);
+    groups.get(d).push(it);
+  }
+  const sortedDates = Array.from(groups.keys()).sort((a,b)=> a<b ? 1 : (a>b ? -1 : 0));
+
+  const fmtDateLong = (iso) => {
+    const dt = new Date(iso);
+    const weekdays = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${weekdays[dt.getUTCDay()]}, ${months[dt.getUTCMonth()]} ${dt.getUTCDate()}, ${dt.getUTCFullYear()}`;
+  };
+
+  const dayBlocks = sortedDates.map(date => {
+    const dayItems = groups.get(date) || [];
+    // if mixed rates in same day, take median
+    const rates = dayItems.map(i => Number(i.exchangeRateUsed)).filter(v => Number.isFinite(v) && v>0).sort((a,b)=>a-b);
+    const rate = rates.length ? (rates[Math.floor(rates.length/2)]) : null;
+    const itemsHtml = dayItems.map(it => {
+      const typeKey = (it.type === 'ingreso' || it.type === 'income') ? 'income' : 'expense';
+      const acc = accById.get(Number(it.accountId));
+      const cat = catById.get(Number(it.categoryId));
+      const amountNum = Number(it.amount || 0);
+      const amountUsdNum = Number(it.amountUsd || 0);
+      const sign = typeKey === 'expense' ? '-' : '+';
+      const curr = it.currency || (acc?.currency) || '';
+      const currLabel = curr === 'VES' ? 'Bs.' : '$';
+      const mainAmount = `${sign}${currLabel}${curr==='VES'? nfVE.format(amountNum) : nfUS.format(amountNum)}`;
+      const usdTxt = `≈ ${sign}$${nfUS.format(amountUsdNum)} USD`;
+      const catColor = cat?.color || '#E5E7EB';
+      const catName = cat?.name || 'Sin categoría';
+      const accName = acc?.name || `#${it.accountId}`;
+      return `
+        <div class="item">
+          <div class="icon ${typeKey}">${typeKey==='income'?'⬆':'⬇'}</div>
+          <div class="stack">
+            <div class="title">${escape(it.description)}</div>
+            <div class="sub">
+              <span class="pill" style="background:${catColor}22; border-color:${catColor}55; color:#111827">${escape(catName)}</span>
+              <span class="pill">${escape(accName)} <span class="meta">${escape(curr)}</span></span>
+            </div>
+          </div>
+          <div class="amount">
+            <div class="main">${mainAmount}</div>
+            <div class="usd">${usdTxt}</div>
+          </div>
+        </div>`;
+    }).join('');
+    return `
+      <div class="day">
+        <div class="line"></div>
+        <div class="badge">${escape(fmtDateLong(date))}${rate?` • Tasa: ${nfUS.format(rate)}`:''}</div>
+        <div class="line"></div>
+      </div>
+      <div class="list">${itemsHtml}</div>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+  <html>
+    <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <style>${css}</style>
+      <title>${escape(title)}</title>
+    </head>
+    <body>
+      <header>
+        <h1>${escape(title)}</h1>
+        <div class="meta">Generado ${dayjs().format('YYYY-MM-DD HH:mm')} ${createdBy?`• ${escape(createdBy)}`:''}</div>
+      </header>
+      ${dayBlocks}
+    </body>
+  </html>`;
+}
+
 async function buildTransfersExport({ userId, fromDate, toDate, accountId, includeCommission, createdBy, format }) {
   const rows = await txService.getTransferExportRows({ userId, fromDate, toDate, accountId, includeCommission, createdBy });
   const filename = `transfers_${dayjs().format('YYYY-MM-DD')}.${format}`;
@@ -148,4 +258,65 @@ async function buildTransfersExport({ userId, fromDate, toDate, accountId, inclu
   throw new Error('Formato no soportado');
 }
 
-module.exports = { buildTransfersExport };
+// New: Build PDF for transactions list from provided JSON body
+async function buildTransactionsListExport({ data, format = 'pdf' }) {
+  const filename = `transactions_${dayjs().format('YYYY-MM-DD')}.${format}`;
+  if (format !== 'pdf') throw new Error('Sólo PDF soportado para esta plantilla');
+
+  const html = renderTransactionsListHtml({
+    items: data?.items || [],
+    accounts: data?.accounts || data?.accountsData || [],
+    categories: data?.categories || data?.categoriesData || [],
+    title: data?.title || 'Mis Transacciones',
+    createdBy: data?.createdBy || '',
+  });
+
+  // Prefer puppeteer for fidelity, fallback to PDFKit minimal
+  const usePuppeteer = config.exportPdfEngine === 'puppeteer' && puppeteer;
+  if (usePuppeteer) {
+    const browser = await puppeteer.launch({ args: ['--no-sandbox','--disable-setuid-sandbox'] });
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '10mm', right: '10mm', bottom: '12mm', left: '10mm' } });
+      const stream = new PassThrough();
+      stream.end(pdfBuffer);
+      return { contentType: 'application/pdf', filename, stream };
+    } finally {
+      await browser.close();
+    }
+  }
+
+  // Fallback basic layout with PDFKit
+  const stream = new PassThrough();
+  const doc = new PDFDocument({ margin: 40, size: 'A4' });
+  doc.pipe(stream);
+  doc.fontSize(14).text(data?.title || 'Mis Transacciones', { align: 'center' });
+  doc.moveDown(0.5);
+  const items = data?.items || [];
+  const nfUS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const nfVE = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  let currentDate = null;
+  for (const it of items) {
+    if (it.date !== currentDate) {
+      currentDate = it.date;
+      doc.moveDown(0.4);
+      doc.fontSize(11).fillColor('#374151').text(`${currentDate}  Tasa: ${it.exchangeRateUsed || ''}`);
+      doc.moveDown(0.2).strokeColor('#E5E7EB').moveTo(doc.x, doc.y).lineTo(doc.page.width - doc.page.margins.right, doc.y).stroke();
+      doc.moveDown(0.2).fillColor('#111827');
+    }
+    const sign = (it.type === 'ingreso' || it.type === 'income') ? '+' : '-';
+    const currLabel = it.currency === 'VES' ? 'Bs.' : '$';
+    const mainAmount = `${sign}${currLabel}${it.currency==='VES'? nfVE.format(Number(it.amount||0)) : nfUS.format(Number(it.amount||0))}`;
+    const usdTxt = `≈ ${sign}$${nfUS.format(Number(it.amountUsd||0))} USD`;
+    doc.fontSize(10).text(it.description || '', { continued: true, width: 280 });
+    doc.text(mainAmount, { continued: true, align: 'right', width: 120 });
+    doc.text(usdTxt, { align: 'right', width: 100 });
+    doc.moveDown(0.1);
+    if (doc.y > doc.page.height - 80) doc.addPage();
+  }
+  doc.end();
+  return { contentType: 'application/pdf', filename, stream };
+}
+
+module.exports = { buildTransfersExport, buildTransactionsListExport };
