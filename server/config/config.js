@@ -19,6 +19,7 @@ const config = {
   apiBasePath: process.env.API_BASE_PATH || '/api',
   corsWhitelist: (process.env.FRONTEND_URLS || 'http://localhost:3000').split(',').map(s => s.trim()).filter(Boolean),
   sqlLog: parseBool(process.env.SQL_LOG, false),
+  exportPdfEngine: (process.env.EXPORT_PDF_ENGINE || 'puppeteer').toLowerCase(), // 'puppeteer' | 'pdfkit'
 };
 
 module.exports = { config };
