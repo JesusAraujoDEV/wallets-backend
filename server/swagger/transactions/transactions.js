@@ -234,6 +234,129 @@
  *       500:
  *         description: Error del servidor
  *
+ * /transactions/transfer/export:
+ *   get:
+ *     summary: Exportar transferencias (simple por query) en PDF o Excel (stream)
+ *     tags: [Transactions]
+ *     parameters:
+ *       - in: query
+ *         name: format
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [pdf, xlsx]
+ *         description: Formato del archivo a exportar
+ *       - in: query
+ *         name: from_date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha inicio (YYYY-MM-DD)
+ *       - in: query
+ *         name: to_date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha fin (YYYY-MM-DD)
+ *       - in: query
+ *         name: account_id
+ *         schema:
+ *           type: integer
+ *         description: Filtrar por cuenta (opcional)
+ *       - in: query
+ *         name: include_commission
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         description: Incluir filas de comisión en el export
+ *     responses:
+ *       200:
+ *         description: Archivo exportado (stream)
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *         headers:
+ *           Content-Disposition:
+ *             schema:
+ *               type: string
+ *             description: attachment; filename*=UTF-8''transfers_YYYY-MM-DD.pdf|.xlsx
+ *           Cache-Control:
+ *             schema:
+ *               type: string
+ *             description: no-store
+ *       400:
+ *         description: Parámetros inválidos
+ *       401:
+ *         description: No autorizado
+ *       500:
+ *         description: Error del servidor
+ *   post:
+ *     summary: Exportar transferencias (preferido con body JSON para filtros complejos)
+ *     tags: [Transactions]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               format:
+ *                 type: string
+ *                 enum: [pdf, xlsx]
+ *               from_date:
+ *                 type: string
+ *                 format: date
+ *               to_date:
+ *                 type: string
+ *                 format: date
+ *               account_id:
+ *                 type: integer
+ *               include_commission:
+ *                 type: boolean
+ *                 default: false
+ *               timezone:
+ *                 type: string
+ *                 description: Zona horaria para formateos (opcional)
+ *           examples:
+ *             pdf:
+ *               value:
+ *                 format: pdf
+ *                 from_date: '2025-01-01'
+ *                 to_date: '2025-10-31'
+ *                 include_commission: true
+ *     responses:
+ *       200:
+ *         description: Archivo exportado (stream)
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *         headers:
+ *           Content-Disposition:
+ *             schema:
+ *               type: string
+ *             description: attachment; filename*=UTF-8''transfers_YYYY-MM-DD.pdf|.xlsx
+ *           Cache-Control:
+ *             schema:
+ *               type: string
+ *             description: no-store
+ *       400:
+ *         description: Parámetros inválidos
+ *       401:
+ *         description: No autorizado
+ *       500:
+ *         description: Error del servidor
  * /transactions/transfer:
  *   post:
  *     summary: Crear una transferencia entre cuentas (genera 2 movimientos y 1 gasto de comisión opcional)

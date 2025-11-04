@@ -34,7 +34,7 @@ function requestLogger() {
       } catch (e) {
         out = '<unserializable>';
       }
-      //console.log(`respuesta: ${out}`);
+      console.log(`respuesta: ${out}`);
     });
 
     next();
