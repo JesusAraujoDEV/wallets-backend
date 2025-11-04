@@ -1,5 +1,5 @@
 const txService = require('../services/transaction_service');
-const { buildTransfersExport, buildTransactionsListExport } = require('../services/export_service');
+const { buildTransfersExport, buildTransactionsListExport, buildTransactionsExportFromDb } = require('../services/export_service');
 const { BadRequestError, NotFoundError } = require('../utils/errors');
 
 async function list(req, res, next) {
@@ -112,4 +112,29 @@ async function exportTransfers(req, res, next) {
   }
 }
 
-module.exports = { list, create, transfer, update, remove, exportTransfers };
+async function exportAll(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const payload = req.query;
+    const format = String((payload && payload.format) || 'pdf').toLowerCase();
+    if (format !== 'pdf' && format !== 'xlsx') throw new BadRequestError('Formato inválido. Use pdf o xlsx');
+
+    const { q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = payload;
+    const filters = { q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats };
+
+    const { contentType, filename, stream } = await buildTransactionsExportFromDb({
+      userId,
+      format,
+      filters,
+      createdBy: req.user.email || req.user.id,
+    });
+
+    res.set('Cache-Control', 'no-store');
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`);
+    stream.on('error', () => { if (!res.headersSent) res.status(500); res.end(); });
+    return stream.pipe(res);
+  } catch (e) { return next(e); }
+}
+
+module.exports = { list, create, transfer, update, remove, exportTransfers, exportAll };

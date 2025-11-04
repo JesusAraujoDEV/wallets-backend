@@ -20,4 +20,7 @@ router.delete('/', txCtrl.remove);
 router.get('/transfer/export', txCtrl.exportTransfers);
 router.post('/transfer/export', express.json(), txCtrl.exportTransfers);
 
+// Export all transactions (PDF or XLSX) using server-side query
+router.get('/export', txCtrl.exportAll);
+
 module.exports = router;

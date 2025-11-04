@@ -3,6 +3,7 @@ const ExcelJS = require('exceljs');
 const PDFDocument = require('pdfkit');
 const dayjs = require('dayjs');
 const txService = require('./transaction_service');
+const { models } = require('../libs/sequelize');
 const { config } = require('../config/config');
 let puppeteer; try { puppeteer = require('puppeteer'); } catch (_) { puppeteer = null; }
 
@@ -364,3 +365,29 @@ async function buildTransactionsListExport({ data, format = 'pdf' }) {
 }
 
 module.exports = { buildTransfersExport, buildTransactionsListExport };
+
+// Build export directly from DB using the same template as EPIC body-based export
+async function buildTransactionsExportFromDb({ userId, format = 'pdf', filters = {}, createdBy }) {
+  // 1) Fetch items based on filters used in list endpoints
+  const items = await txService.getAllTransactions({ userId, ...filters });
+  // 2) Fetch accounts and categories for name/currency/type resolutions
+  const [accounts, categories] = await Promise.all([
+    models.Account.findAll({
+      attributes: ['id', 'name', 'currency'],
+      where: { userId },
+      raw: true,
+    }),
+    models.Category.findAll({
+      attributes: ['id', 'name', 'type', 'icon', 'color', ['color_name', 'colorName']],
+      where: { userId },
+      raw: true,
+    }),
+  ]);
+
+  return buildTransactionsListExport({
+    data: { items, accounts, categories, title: 'Transactions Export', createdBy },
+    format,
+  });
+}
+
+module.exports.buildTransactionsExportFromDb = buildTransactionsExportFromDb;
