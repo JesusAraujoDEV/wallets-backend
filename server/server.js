@@ -10,6 +10,7 @@ const { sequelize } = require('./libs/sequelize');
 const { buildApiRouter } = require('./routes');
 const { swaggerSpec } = require('./swagger/spec');
 const { logErrors, boomErrorHandler, ormErrorHandler, errorHandler } = require('./middlewares/error_handler');
+const { requestLogger } = require('./middlewares/request_logger');
 const { protect } = require('./middlewares/auth_handler');
 
 async function findAvailablePort(startPort, maxTries = 5) {
@@ -47,6 +48,9 @@ async function bootstrap() {
 
   app.use(express.json());
   app.use(cookieParser());
+
+  // Global request/response logger
+  app.use(requestLogger());
 
   // Static uploads
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

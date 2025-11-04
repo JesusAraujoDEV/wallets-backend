@@ -4,7 +4,7 @@ const { setupModels } = require('../models');
 
 const sequelize = new Sequelize(config.databaseUrl, {
   dialect: 'postgres',
-  logging: !config.isProd ? console.log : false,
+  logging: config.sqlLog ? console.log : false,
   dialectOptions: config.isProd ? { ssl: { require: true, rejectUnauthorized: false } } : {},
 });
 
