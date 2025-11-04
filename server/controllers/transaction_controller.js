@@ -74,9 +74,8 @@ async function exportTransfers(req, res, next) {
     const dateRe = /^\d{4}-\d{2}-\d{2}$/;
     if (format !== 'xlsx' && format !== 'pdf') throw new BadRequestError('Formato inválido. Use pdf o xlsx');
 
-    // EPIC: if the client posts a transactions JSON (items, accounts, categories), render a fancy PDF directly
+    // EPIC: if the client posts a transactions JSON (items, accounts, categories), render a fancy export (PDF or XLSX)
     if (req.method === 'POST' && Array.isArray(payload?.items)) {
-      if (format !== 'pdf') throw new BadRequestError('Sólo PDF soportado para la plantilla de transacciones. Use format=pdf');
       const { contentType, filename, stream } = await buildTransactionsListExport({ data: payload, format });
       res.set('Cache-Control', 'no-store');
       res.setHeader('Content-Type', contentType);

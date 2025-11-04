@@ -258,10 +258,9 @@ async function buildTransfersExport({ userId, fromDate, toDate, accountId, inclu
   throw new Error('Formato no soportado');
 }
 
-// New: Build PDF for transactions list from provided JSON body
+// New: Build export for transactions list (PDF or XLSX) from provided JSON body
 async function buildTransactionsListExport({ data, format = 'pdf' }) {
   const filename = `transactions_${dayjs().format('YYYY-MM-DD')}.${format}`;
-  if (format !== 'pdf') throw new Error('Sólo PDF soportado para esta plantilla');
 
   const html = renderTransactionsListHtml({
     items: data?.items || [],
@@ -270,6 +269,51 @@ async function buildTransactionsListExport({ data, format = 'pdf' }) {
     title: data?.title || 'Mis Transacciones',
     createdBy: data?.createdBy || '',
   });
+
+  // XLSX path
+  if (format === 'xlsx') {
+    const items = data?.items || [];
+    const accounts = data?.accounts || data?.accountsData || [];
+    const categories = data?.categories || data?.categoriesData || [];
+    const accById = new Map(accounts.map(a => [Number(a.id), a]));
+    const catById = new Map(categories.map(c => [Number(c.id), c]));
+
+    const stream = new PassThrough();
+    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({ stream });
+    const sheet = workbook.addWorksheet('Transactions');
+    sheet.columns = [
+      { header: 'date', key: 'date', width: 12 },
+      { header: 'description', key: 'description', width: 60 },
+      { header: 'amount', key: 'amount', width: 12 },
+      { header: 'currency', key: 'currency', width: 8 },
+      { header: 'amount_usd', key: 'amount_usd', width: 12 },
+      { header: 'exchange_rate', key: 'exchange_rate', width: 14 },
+      { header: 'category', key: 'category', width: 28 },
+      { header: 'category_type', key: 'category_type', width: 14 },
+      { header: 'account', key: 'account', width: 28 },
+      { header: 'account_currency', key: 'account_currency', width: 8 },
+    ];
+
+    for (const it of items) {
+      const acc = accById.get(Number(it.accountId));
+      const cat = catById.get(Number(it.categoryId));
+      sheet.addRow({
+        date: it.date || '',
+        description: it.description || '',
+        amount: Number(it.amount ?? 0),
+        currency: it.currency || acc?.currency || '',
+        amount_usd: Number(it.amountUsd ?? 0),
+        exchange_rate: it.exchangeRateUsed || '',
+        category: cat?.name || '',
+        category_type: (it.type === 'ingreso' || it.type === 'income') ? 'income' : 'expense',
+        account: acc?.name || '',
+        account_currency: acc?.currency || '',
+      }).commit();
+    }
+    await sheet.commit();
+    workbook.commit().catch(() => {});
+    return { contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename, stream };
+  }
 
   // Prefer puppeteer for fidelity, fallback to PDFKit minimal
   const usePuppeteer = config.exportPdfEngine === 'puppeteer' && puppeteer;
