@@ -1,12 +1,12 @@
 const { models } = require('../libs/sequelize');
-const boom = require('@hapi/boom');
+const { BadRequestError } = require('../utils/errors');
 
 function normalizeType(input) {
   if (!input) return null;
   const v = String(input).toLowerCase();
   if (v === 'ingreso' || v === 'income') return 'ingreso';
   if (v === 'gasto' || v === 'expense') return 'gasto';
-  throw boom.badRequest('Tipo de categoría inválido. Use "income"/"expense" o "ingreso"/"gasto".');
+  throw new BadRequestError('Tipo de categoría inválido. Use "income"/"expense" o "ingreso"/"gasto".');
 }
 
 async function list(userId) {

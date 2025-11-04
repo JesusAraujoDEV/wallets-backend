@@ -1,4 +1,5 @@
 const boom = require('@hapi/boom');
+const { AppError } = require('../utils/errors');
 
 function logErrors(err, _req, _res, next) {
   // eslint-disable-next-line no-console
@@ -24,6 +25,9 @@ function ormErrorHandler(err, _req, res, next) {
 }
 
 function errorHandler(err, _req, res, _next) {
+  if (err instanceof AppError) {
+    return res.status(err.status).json({ statusCode: err.status, message: err.message, ...(err.details ? { details: err.details } : {}) });
+  }
   const status = err.status || 500;
   res.status(status).json({ statusCode: status, message: err.message || 'Internal Server Error' });
 }
