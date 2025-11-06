@@ -308,10 +308,151 @@ async function getMonthlyForecast({ userId, accountId, date, budgetTotal }) {
   };
 }
 
+async function getIncomeHeatmap({ userId, fromDate, toDate, accountId }) {
+  const from = assertDateStr(fromDate);
+  const to = assertDateStr(toDate);
+  const accountIds = parseIdFilter(accountId);
+
+  const whereTx = { userId, date: { [Op.gte]: from, [Op.lte]: to } };
+  if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
+
+  const rows = await models.Transaction.findAll({
+    attributes: [
+      [col('Category.name'), 'category'],
+      [fn('date_part', 'dow', col('Transaction.date')), 'dow'],
+      [fn('SUM', col('Transaction.amount_usd')), 'sum_usd'],
+    ],
+    where: whereTx,
+    include: [{ model: models.Category, attributes: [], where: { type: 'ingreso', includeInStats: true }, required: true }],
+    group: [col('Category.name'), fn('date_part', 'dow', col('Transaction.date'))],
+    order: [[col('Category.name'), 'ASC']],
+    raw: true,
+  });
+
+  const catTotals = new Map();
+  for (const r of rows) {
+    const name = r.category; const amt = Number(r.sum_usd || 0);
+    catTotals.set(name, (catTotals.get(name) || 0) + amt);
+  }
+  const categories = Array.from(catTotals.entries()).sort((a,b)=>b[1]-a[1]).map(([name])=>name);
+  const catIndex = new Map(categories.map((c,i)=>[c,i]));
+  const weekdays = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const data_points = rows.map(r => ({ category_idx: catIndex.get(r.category), day_idx: Number(r.dow), amount: Number(r.sum_usd || 0) }))
+    .filter(dp => dp.category_idx !== undefined);
+
+  let peakCategory = null; let peakDayIdx = null; let peakAmount = -1;
+  const byCatDay = new Map();
+  for (const dp of data_points) {
+    const key = `${dp.category_idx}-${dp.day_idx}`;
+    const val = (byCatDay.get(key) || 0) + dp.amount;
+    byCatDay.set(key, val);
+    if (val > peakAmount) { peakAmount = val; peakCategory = categories[dp.category_idx]; peakDayIdx = dp.day_idx; }
+  }
+
+  return { categories, weekdays, data_points, summary: { peak_category: peakCategory || null, peak_day: peakDayIdx != null ? weekdays[peakDayIdx] : null } };
+}
+
+async function getIncomeVolatility({ userId, fromDate, toDate, topN = 5 }) {
+  const from = assertDateStr(fromDate);
+  const to = assertDateStr(toDate);
+
+  const topRows = await models.Transaction.findAll({
+    attributes: [[col('Category.name'), 'category'], [fn('SUM', col('Transaction.amount_usd')), 'sum_usd']],
+    where: { userId, date: { [Op.gte]: from, [Op.lte]: to } },
+    include: [{ model: models.Category, attributes: [], where: { type: 'ingreso', includeInStats: true }, required: true }],
+    group: [col('Category.name')],
+    order: [[fn('SUM', col('Transaction.amount_usd')), 'DESC']],
+    limit: Number(topN) || 5,
+    raw: true,
+  });
+  const catNames = topRows.map(r => r.category);
+  if (catNames.length === 0) return { categories_data: [] };
+
+  const txs = await models.Transaction.findAll({
+    attributes: [[col('Category.name'), 'category'], 'amountUsd'],
+    where: { userId, date: { [Op.gte]: from, [Op.lte]: to } },
+    include: [{ model: models.Category, attributes: [], where: { type: 'ingreso', includeInStats: true, name: { [Op.in]: catNames } }, required: true }],
+    raw: true,
+  });
+
+  const byCat = new Map();
+  for (const t of txs) {
+    const k = t.category; const v = Number(t.amountUsd || 0);
+    if (!byCat.has(k)) byCat.set(k, []);
+    byCat.get(k).push(v);
+  }
+  const categories_data = [];
+  for (const name of catNames) {
+    const arr = (byCat.get(name) || []).filter((v)=>Number.isFinite(v)).sort((a,b)=>a-b);
+    const n = arr.length; if (n === 0) { categories_data.push({ category: name, count: 0, q1: 0, median: 0, q3: 0, min: 0, max: 0, outliers: [] }); continue; }
+    const { q1, median, q3 } = quantiles(arr); const iqr = q3 - q1; const lowFence = q1 - 1.5 * iqr; const highFence = q3 + 1.5 * iqr;
+    const inliers = arr.filter(v => v >= lowFence && v <= highFence);
+    const min = inliers.length ? inliers[0] : arr[0]; const max = inliers.length ? inliers[inliers.length - 1] : arr[arr.length - 1];
+    const outliers = arr.filter(v => v < lowFence || v > highFence);
+    categories_data.push({ category: name, count: n, q1, median, q3, min, max, outliers });
+  }
+  return { categories_data };
+}
+
+async function getComparativeMoMIncome({ userId, date }) {
+  const base = date ? new Date(date) : new Date();
+  const currentStart = firstOfMonth(base);
+  const currentEnd = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate()));
+  const prevEnd = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), 0));
+  const prevStart = new Date(Date.UTC(prevEnd.getUTCFullYear(), prevEnd.getUTCMonth(), 1));
+  const currentDaysElapsed = base.getUTCDate();
+  const prevDaysInPrev = daysInMonth(prevEnd);
+  const prevMTDLastDay = Math.min(currentDaysElapsed, prevDaysInPrev);
+  const prevEndMTD = new Date(Date.UTC(prevEnd.getUTCFullYear(), prevEnd.getUTCMonth(), prevMTDLastDay));
+
+  const fmt = (d) => d.toISOString().slice(0, 10);
+  const curWhere = { userId, date: { [Op.gte]: fmt(currentStart), [Op.lte]: fmt(currentEnd) } };
+  const prevWhere = { userId, date: { [Op.gte]: fmt(prevStart), [Op.lte]: fmt(prevEndMTD) } };
+
+  const [curCats, prevCats] = await Promise.all([
+    models.Transaction.findAll({
+      attributes: [[col('Category.name'), 'category'], [fn('SUM', col('Transaction.amount_usd')), 'sum_usd']],
+      where: curWhere,
+      include: [{ model: models.Category, attributes: [], where: { type: 'ingreso', includeInStats: true }, required: true }],
+      group: [col('Category.name')], raw: true,
+    }),
+    models.Transaction.findAll({
+      attributes: [[col('Category.name'), 'category'], [fn('SUM', col('Transaction.amount_usd')), 'sum_usd']],
+      where: prevWhere,
+      include: [{ model: models.Category, attributes: [], where: { type: 'ingreso', includeInStats: true }, required: true }],
+      group: [col('Category.name')], raw: true,
+    })
+  ]);
+
+  const curMap = new Map(curCats.map(r => [r.category, Number(r.sum_usd || 0)]));
+  const prevMap = new Map(prevCats.map(r => [r.category, Number(r.sum_usd || 0)]));
+  const cats = Array.from(new Set([...curMap.keys(), ...prevMap.keys()]));
+  const categories_comparison = cats.map(name => {
+    const current_amount = curMap.get(name) || 0; const previous_amount = prevMap.get(name) || 0;
+    let delta_percent = 0; if (previous_amount === 0) delta_percent = current_amount > 0 ? 1.0 : 0.0; else delta_percent = (current_amount - previous_amount) / previous_amount;
+    return { category: name, current_amount, previous_amount, delta_percent };
+  }).sort((a,b)=>Math.abs(b.delta_percent)-Math.abs(a.delta_percent));
+
+  const current_total = Array.from(curMap.values()).reduce((a,b)=>a+b,0);
+  const previous_total = Array.from(prevMap.values()).reduce((a,b)=>a+b,0);
+  const total_delta_usd = current_total - previous_total;
+  const total_delta_percent = previous_total === 0 ? (current_total>0?1.0:0.0) : total_delta_usd / previous_total;
+
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const cpName = `${monthNames[currentStart.getUTCMonth()]} MTD (1-${currentEnd.getUTCDate()})`;
+  const ppName = `${monthNames[prevStart.getUTCMonth()]} MTD (1-${prevEndMTD.getUTCDate()})`;
+
+  return { summary: { current_period_name: cpName, previous_period_name: ppName, current_total, previous_total, total_delta_usd, total_delta_percent }, categories_comparison };
+}
+
+
 module.exports = {
   getNetCashFlow,
   getSpendingHeatmap,
   getExpenseVolatility,
   getComparativeMoM,
   getMonthlyForecast,
+  getIncomeHeatmap,
+  getIncomeVolatility,
+  getComparativeMoMIncome
 };

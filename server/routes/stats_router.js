@@ -20,4 +20,9 @@ router.get('/comparative-mom', statsCtrl.comparativeMoM);
 // 5) Monthly Forecast
 router.get('/monthly-forecast', statsCtrl.monthlyForecast);
 
+// Income-focused analytics
+router.get('/income-heatmap', statsCtrl.incomeHeatmap);
+router.get('/income-volatility', statsCtrl.incomeVolatility);
+router.get('/comparative-mom-income', statsCtrl.comparativeMoMIncome);
+
 module.exports = router;

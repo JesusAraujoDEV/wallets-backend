@@ -99,6 +99,42 @@
 
 /**
  * @swagger
+ * /stats/income-heatmap:
+ *   get:
+ *     tags: [Stats]
+ *     summary: Mapa de calor de ingresos por categoría y día de la semana
+ *     parameters:
+ *       - in: query
+ *         name: from_date
+ *         schema: { type: string, example: '2025-03-01' }
+ *         required: true
+ *       - in: query
+ *         name: to_date
+ *         schema: { type: string, example: '2025-03-31' }
+ *         required: true
+ *       - in: query
+ *         name: accountId
+ *         schema: { type: string, example: '1,2' }
+ *     responses:
+ *       200:
+ *         description: Categorías, días y puntos de datos agregados en USD normalizados (ingresos)
+ *         content:
+ *           application/json:
+ *             examples:
+ *               sample:
+ *                 value:
+ *                   categories: ["Salario","Bonos","Intereses"]
+ *                   weekdays: ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"]
+ *                   data_points:
+ *                     - { category_idx: 0, day_idx: 5, amount: 1500 }
+ *                   summary:
+ *                     peak_category: "Salario"
+ *                     peak_day: "Viernes"
+ */
+
+
+/**
+ * @swagger
  * /stats/expense-volatility:
  *   get:
  *     tags: [Stats]
@@ -136,6 +172,43 @@
 
 /**
  * @swagger
+ * /stats/income-volatility:
+ *   get:
+ *     tags: [Stats]
+ *     summary: Volatilidad de ingresos (estadísticos tipo boxplot) para las principales categorías
+ *     parameters:
+ *       - in: query
+ *         name: from_date
+ *         schema: { type: string, example: '2025-01-01' }
+ *         required: true
+ *       - in: query
+ *         name: to_date
+ *         schema: { type: string, example: '2025-03-31' }
+ *         required: true
+ *       - in: query
+ *         name: top_n_categories
+ *         schema: { type: integer, example: 5, default: 5 }
+ *     responses:
+ *       200:
+ *         description: Lista de categorías con q1, mediana, q3, min, max y outliers (ingresos)
+ *         content:
+ *           application/json:
+ *             examples:
+ *               sample:
+ *                 value:
+ *                   categories_data:
+ *                     - category: "Salario"
+ *                       count: 12
+ *                       q1: 900
+ *                       median: 1000
+ *                       q3: 1100
+ *                       min: 850
+ *                       max: 1200
+ *                       outliers: []
+ */
+
+/**
+ * @swagger
  * /stats/comparative-mom:
  *   get:
  *     tags: [Stats]
@@ -162,6 +235,36 @@
  *                     total_delta_percent: 0.083
  *                   categories_comparison:
  *                     - { category: "Comida", current_amount: 200, previous_amount: 180, delta_percent: 0.111 }
+ */
+
+/**
+ * @swagger
+ * /stats/comparative-mom-income:
+ *   get:
+ *     tags: [Stats]
+ *     summary: Comparativa MTD vs MTD anterior de ingresos por categoría y total
+ *     parameters:
+ *       - in: query
+ *         name: date
+ *         schema: { type: string, example: '2025-03-15' }
+ *         description: Fecha de referencia; por defecto hoy
+ *     responses:
+ *       200:
+ *         description: Resumen y deltas por categoría (ingresos)
+ *         content:
+ *           application/json:
+ *             examples:
+ *               sample:
+ *                 value:
+ *                   summary:
+ *                     current_period_name: "Marzo MTD (1-15)"
+ *                     previous_period_name: "Febrero MTD (1-15)"
+ *                     current_total: 3200
+ *                     previous_total: 3000
+ *                     total_delta_usd: 200
+ *                     total_delta_percent: 0.0667
+ *                   categories_comparison:
+ *                     - { category: "Salario", current_amount: 3000, previous_amount: 2800, delta_percent: 0.0714 }
  */
 
 /**

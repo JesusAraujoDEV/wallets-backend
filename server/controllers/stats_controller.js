@@ -49,4 +49,33 @@ async function monthlyForecast(req, res, next) {
   } catch (e) { return next(e); }
 }
 
-module.exports = { netCashFlow, spendingHeatmap, expenseVolatility, comparativeMoM, monthlyForecast };
+async function incomeHeatmap(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const { from_date, to_date, accountId } = req.query;
+    if (!from_date || !to_date) throw new BadRequestError('from_date y to_date son requeridos (YYYY-MM-DD)');
+    const result = await stats.getIncomeHeatmap({ userId, fromDate: from_date, toDate: to_date, accountId });
+    return res.json(result);
+  } catch (e) { return next(e); }
+}
+
+async function incomeVolatility(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const { from_date, to_date, top_n_categories } = req.query;
+    if (!from_date || !to_date) throw new BadRequestError('from_date y to_date son requeridos (YYYY-MM-DD)');
+    const result = await stats.getIncomeVolatility({ userId, fromDate: from_date, toDate: to_date, topN: top_n_categories ? Number(top_n_categories) : 5 });
+    return res.json(result);
+  } catch (e) { return next(e); }
+}
+
+async function comparativeMoMIncome(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const { date } = req.query;
+    const result = await stats.getComparativeMoMIncome({ userId, date });
+    return res.json(result);
+  } catch (e) { return next(e); }
+}
+
+module.exports = { netCashFlow, spendingHeatmap, expenseVolatility, comparativeMoM, monthlyForecast, incomeHeatmap, incomeVolatility, comparativeMoMIncome };
