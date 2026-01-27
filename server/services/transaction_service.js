@@ -20,7 +20,8 @@ async function getVesPerUsdByDate(date) {
     d.setDate(d.getDate() - i);
     const dateString = d.toISOString().split('T')[0];
     try {
-      const response = await axios.get(`https://api.dolarvzla.com/public/exchange-rate/list?from=${dateString}&to=${dateString}`);
+      const url = `https://api.dolarvzla.com/public/exchange-rate/list?from=${dateString}&to=${dateString}`;
+      const response = await axios.get(url, { headers: { 'x-dolarvzla-key': process.env.BCV_API_KEY } });
       if (response.data && response.data.rates && response.data.rates.length > 0 && response.data.rates[0].usd) {
         return response.data.rates[0].usd;
       }

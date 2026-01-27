@@ -18,7 +18,7 @@ async function checkExchangeRateApi() {
   const url = `https://api.dolarvzla.com/public/exchange-rate/list?from=${today}&to=${today}`;
   const t0 = Date.now();
   try {
-    const r = await axios.get(url, { timeout: 2500 });
+    const r = await axios.get(url, { timeout: 2500, headers: { 'x-dolarvzla-key': process.env.BCV_API_KEY } });
     return { ok: r.status >= 200 && r.status < 300, latencyMs: Date.now() - t0, error: null };
   } catch (e) {
     return { ok: false, latencyMs: Date.now() - t0, error: e.message };
