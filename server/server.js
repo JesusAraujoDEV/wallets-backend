@@ -53,9 +53,6 @@ async function bootstrap() {
   // Request origin logger (tracks Origin/Referer, IP, User-Agent)
   app.use(requestOriginLogger);
 
-  // Global request/response logger
-  app.use(requestLogger());
-
   // Static uploads
   app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
