@@ -11,6 +11,7 @@ const { buildApiRouter } = require('./routes');
 const { swaggerSpec } = require('./swagger/spec');
 const { logErrors, boomErrorHandler, ormErrorHandler, errorHandler } = require('./middlewares/error_handler');
 const { requestLogger } = require('./middlewares/request_logger');
+const { requestOriginLogger } = require('./middlewares/request_origin_logger');
 const { protect } = require('./middlewares/auth_handler');
 
 async function findAvailablePort(startPort, maxTries = 5) {
@@ -48,6 +49,9 @@ async function bootstrap() {
 
   app.use(express.json());
   app.use(cookieParser());
+
+  // Request origin logger (tracks Origin/Referer, IP, User-Agent)
+  app.use(requestOriginLogger);
 
   // Global request/response logger
   app.use(requestLogger());
