@@ -2,13 +2,6 @@ const axios = require('axios');
 const { Op, fn, col, where: sqWhere, literal } = require('sequelize');
 const { sequelize, models } = require('../libs/sequelize');
 
-function parseBcvRate(value) {
-  if (value === undefined || value === null) return null;
-  const normalized = String(value).replace(/\./g, '').replace(',', '.');
-  const n = Number(normalized);
-  return Number.isFinite(n) ? n : null;
-}
-
 function parseIdFilter(input) {
   if (!input) return null;
   const parts = Array.isArray(input) ? input : String(input).split(',');
@@ -27,10 +20,11 @@ async function getVesPerUsdByDate(date) {
     d.setDate(d.getDate() - i);
     const dateString = d.toISOString().split('T')[0];
     try {
-      const url = `https://bcv-api.irissoftware.lat/api/v1/bcv?date=${dateString}`;
-      const response = await axios.get(url, { headers: { 'x-dolarvzla-key': process.env.BCV_API_KEY } });
-      const rate = parseBcvRate(response?.data?.data?.tasa_dolar);
-      if (rate) return rate;
+      const url = `https://bcv-api.irissoftware.lat/api/v1/exchange-rates?date=${dateString}`;
+      const response = await axios.get(url, { headers: { 'accept': 'application/json' } });
+      if (response.data && typeof response.data.usd_rate === 'number') {
+        return response.data.usd_rate;
+      }
     } catch (err) { /* ignore and continue */ }
   }
   return 150;

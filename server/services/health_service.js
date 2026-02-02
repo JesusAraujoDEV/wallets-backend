@@ -15,11 +15,12 @@ async function checkDb() {
 
 async function checkExchangeRateApi() {
   const today = new Date().toISOString().slice(0, 10);
-  const url = `https://bcv-api.irissoftware.lat/api/v1/bcv?date=${today}`;
+  const url = `https://bcv-api.irissoftware.lat/api/v1/exchange-rates?date=${today}`;
   const t0 = Date.now();
   try {
-    const r = await axios.get(url, { timeout: 2500, headers: { 'x-dolarvzla-key': process.env.BCV_API_KEY } });
-    return { ok: r.status >= 200 && r.status < 300, latencyMs: Date.now() - t0, error: null };
+    const r = await axios.get(url, { timeout: 2500, headers: { 'accept': 'application/json' } });
+    const ok = r.status >= 200 && r.status < 300 && r.data && typeof r.data.usd_rate === 'number';
+    return { ok, latencyMs: Date.now() - t0, error: ok ? null : 'No usd_rate in response' };
   } catch (e) {
     return { ok: false, latencyMs: Date.now() - t0, error: e.message };
   }
