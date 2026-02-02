@@ -9,6 +9,19 @@ function parseBcvRate(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function normalizeBcvDate(input) {
+  const d = input ? new Date(input) : new Date();
+  if (Number.isNaN(d.getTime())) return null;
+  const day = d.getUTCDay();
+  if (day === 6) d.setUTCDate(d.getUTCDate() - 1); // Saturday -> Friday
+  if (day === 0) d.setUTCDate(d.getUTCDate() - 2); // Sunday -> Friday
+  return d;
+}
+
+function toIsoDate(d) {
+  return d.toISOString().split('T')[0];
+}
+
 function parseIdFilter(input) {
   if (!input) return null;
   const parts = Array.isArray(input) ? input : String(input).split(',');
@@ -21,11 +34,11 @@ function parseIdFilter(input) {
 }
 
 async function getVesPerUsdByDate(date) {
-  const targetDate = date ? new Date(date) : new Date();
+  const targetDate = normalizeBcvDate(date) || new Date();
   for (let i = 0; i < 7; i++) {
     const d = new Date(targetDate);
-    d.setDate(d.getDate() - i);
-    const dateString = d.toISOString().split('T')[0];
+    d.setUTCDate(d.getUTCDate() - i);
+    const dateString = toIsoDate(d);
     try {
       const url = `https://bcv-api.irissoftware.lat/api/v1/bcv?date=${dateString}`;
       const response = await axios.get(url, { headers: { 'x-dolarvzla-key': process.env.BCV_API_KEY } });

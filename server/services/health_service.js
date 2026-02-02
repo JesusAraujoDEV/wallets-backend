@@ -2,6 +2,19 @@ const axios = require('axios');
 const { sequelize } = require('../libs/sequelize');
 const pkg = require('../../package.json');
 
+function normalizeBcvDate(input) {
+  const d = input ? new Date(input) : new Date();
+  if (Number.isNaN(d.getTime())) return new Date();
+  const day = d.getUTCDay();
+  if (day === 6) d.setUTCDate(d.getUTCDate() - 1); // Saturday -> Friday
+  if (day === 0) d.setUTCDate(d.getUTCDate() - 2); // Sunday -> Friday
+  return d;
+}
+
+function toIsoDate(d) {
+  return d.toISOString().slice(0, 10);
+}
+
 async function checkDb() {
   const t0 = Date.now();
   try {
@@ -14,7 +27,7 @@ async function checkDb() {
 }
 
 async function checkExchangeRateApi() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = toIsoDate(normalizeBcvDate());
   const url = `https://bcv-api.irissoftware.lat/api/v1/bcv?date=${today}`;
   const t0 = Date.now();
   try {
