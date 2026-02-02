@@ -15,7 +15,7 @@ async function checkDb() {
 
 async function checkExchangeRateApi() {
   const today = new Date().toISOString().slice(0, 10);
-  const url = `https://api.dolarvzla.com/public/exchange-rate/list?from=${today}&to=${today}`;
+  const url = `https://bcv-api.irissoftware.lat/api/v1/bcv?date=${today}`;
   const t0 = Date.now();
   try {
     const r = await axios.get(url, { timeout: 2500, headers: { 'x-dolarvzla-key': process.env.BCV_API_KEY } });
