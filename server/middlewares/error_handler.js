@@ -7,10 +7,27 @@ function logErrors(err, _req, _res, next) {
   next(err);
 }
 
+function statusToCode(status) {
+  switch (status) {
+    case 400: return 'BAD_REQUEST';
+    case 401: return 'UNAUTHORIZED';
+    case 403: return 'FORBIDDEN';
+    case 404: return 'NOT_FOUND';
+    case 409: return 'CONFLICT';
+    case 422: return 'UNPROCESSABLE_ENTITY';
+    default: return 'INTERNAL_SERVER_ERROR';
+  }
+}
+
 function boomErrorHandler(err, _req, res, next) {
   if (boom.isBoom(err)) {
     const { output } = err;
-    return res.status(output.statusCode).json(output.payload);
+    return res.status(output.statusCode).json({
+      ok: false,
+      statusCode: output.statusCode,
+      error: statusToCode(output.statusCode),
+      message: output.payload.message,
+    });
   }
   next(err);
 }
@@ -19,17 +36,34 @@ function ormErrorHandler(err, _req, res, next) {
   // Basic Sequelize error normalization; extend as needed
   if (err && err.name && err.name.includes('Sequelize')) {
     const status = 400;
-    return res.status(status).json({ statusCode: status, message: err.message, name: err.name });
+    return res.status(status).json({
+      ok: false,
+      statusCode: status,
+      error: statusToCode(status),
+      message: err.message,
+      details: err.name,
+    });
   }
   next(err);
 }
 
 function errorHandler(err, _req, res, _next) {
   if (err instanceof AppError) {
-    return res.status(err.status).json({ statusCode: err.status, message: err.message, ...(err.details ? { details: err.details } : {}) });
+    return res.status(err.status).json({
+      ok: false,
+      statusCode: err.status,
+      error: statusToCode(err.status),
+      message: err.message,
+      ...(err.details ? { details: err.details } : {}),
+    });
   }
   const status = err.status || 500;
-  res.status(status).json({ statusCode: status, message: err.message || 'Internal Server Error' });
+  res.status(status).json({
+    ok: false,
+    statusCode: status,
+    error: statusToCode(status),
+    message: err.message || 'Internal Server Error',
+  });
 }
 
 module.exports = { logErrors, boomErrorHandler, ormErrorHandler, errorHandler };

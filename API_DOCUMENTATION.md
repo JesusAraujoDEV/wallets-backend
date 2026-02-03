@@ -10,6 +10,16 @@
 - Endpoints protegidos usan el middleware `protect` (JWT).  
 - Respuestas de auth usan `{ ok: boolean, ... }`.
 
+### 🧩 Formato de Error Estándar
+```json
+{
+  "ok": false,
+  "statusCode": 400,
+  "error": "BAD_REQUEST",
+  "message": "El campo 'email' es requerido."
+}
+```
+
 ### 🔑 Token
 - Header: `Authorization: Bearer <token>`
 - Errores comunes:
@@ -19,7 +29,7 @@
 
 # 🧭 Módulos Funcionales
 
-## 🩺 Módulo de Salud (Health)
+##  Módulo de Salud (Health)
 
 ### ✅ GET /health
 **Propósito:** Verificar que el API está vivo y respondiendo.
@@ -59,8 +69,18 @@
 ```json
 {
   "ok": true,
-  "db": "up",
-  "uptime": 12345
+  "info": {
+    "name": "wallets-backend",
+    "version": "1.0.0",
+    "env": "development",
+    "uptimeSeconds": 12345,
+    "timestamp": "2026-02-03T12:00:00.000Z"
+  },
+  "components": {
+    "db": { "ok": true, "latencyMs": 8, "error": null },
+    "exchangeRateApi": { "ok": true, "latencyMs": 120, "error": null }
+  },
+  "totalLatencyMs": 130
 }
 ```
 
@@ -71,7 +91,49 @@
 
 ## 👮 Módulo de Autenticación
 
-### 🔓 POST /auth/login
+### 🆕 POST /auth/register
+**Propósito:** Registra un usuario nuevo y lo autentica inmediatamente.
+
+🔐 **Permisos:** Público.
+
+📥 **Request Body**
+```json
+{
+  "username": "demo",
+  "name": "Demo User",
+  "email": "demo@correo.com",
+  "password": "secret123"
+}
+```
+
+**Validaciones:**
+- `username`: mínimo 3 caracteres.
+- `email`: formato válido y único.
+- `password`: mínimo 6 caracteres.
+
+📤 **Respuesta Exitosa (201 Created)**
+```json
+{
+  "ok": true,
+  "token": "eyJhbGciOi...",
+  "user": {
+    "id": 1,
+    "username": "demo",
+    "email": "demo@correo.com",
+    "name": "Demo User"
+  }
+}
+```
+
+⚠️ **Errores Comunes**
+- **400** si faltan campos o no cumplen validación.
+- **409** si el usuario o email ya existe.
+
+💡 **Nota de Lógica:** al registrarse se crea automáticamente una cuenta inicial **Efectivo** (USD) con balance 0.
+
+---
+
+###  POST /auth/login
 **Propósito:** Inicia sesión y devuelve un token JWT.
 
 🔐 **Permisos:** Público.
@@ -91,7 +153,9 @@
   "token": "eyJhbGciOi...",
   "user": {
     "id": 1,
-    "username": "demo"
+    "username": "demo",
+    "email": "demo@correo.com",
+    "name": "Demo User"
   }
 }
 ```
@@ -118,7 +182,9 @@
   "ok": true,
   "user": {
     "id": 1,
-    "username": "demo"
+    "username": "demo",
+    "email": "demo@correo.com",
+    "name": "Demo User"
   }
 }
 ```

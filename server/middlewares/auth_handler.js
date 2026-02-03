@@ -12,7 +12,7 @@ async function protect(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await models.User.findByPk(decoded.id, { attributes: ['id', 'username'] });
+    const user = await models.User.findByPk(decoded.id, { attributes: ['id', 'username', 'email', 'name'] });
     if (!user) return res.status(401).json({ ok: false, message: 'No autorizado, usuario no encontrado.' });
     req.user = user.toJSON();
     next();
