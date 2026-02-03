@@ -5,108 +5,114 @@ const dayjs = require('dayjs');
 const txService = require('./transaction_service');
 const { models } = require('../libs/sequelize');
 const { config } = require('../config/config');
-let puppeteer; try { puppeteer = require('puppeteer'); } catch (_) { puppeteer = null; }
+let reactPdf; try { reactPdf = require('@react-pdf/renderer'); } catch (_) { reactPdf = null; }
+const React = reactPdf ? require('react') : null;
 
-function renderTransfersHtml(rows) {
-  const css = `
-    * { box-sizing: border-box; }
-    body { font-family: Arial, Helvetica, sans-serif; color: #111827; margin: 24px; }
-    h1 { text-align: center; font-size: 20px; margin-bottom: 16px; color: #111827; }
-    .meta { font-size: 12px; color: #6B7280; text-align: center; margin-bottom: 16px; }
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    thead th { background: #111827; color: white; text-align: left; padding: 8px; }
-    tbody td { padding: 8px; border-bottom: 1px solid #E5E7EB; vertical-align: top; }
-    tbody tr:nth-child(odd) { background: #F9FAFB; }
-    .num { text-align: right; font-variant-numeric: tabular-nums; }
-    .muted { color: #6B7280; }
-  `;
-  const escape = (s) => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const rowsHtml = rows.map(r => `
-      <tr>
-        <td>${escape(r.id)}</td>
-        <td>${escape(r.date)}</td>
-        <td>${escape(r.from_account || '')}</td>
-        <td>${escape(r.to_account || '')}</td>
-        <td>${escape(r.currency || '')}</td>
-        <td class="num">${escape(r.amount)}</td>
-        <td class="num">${r.commission ? escape(r.commission) : '<span class="muted">-</span>'}</td>
-        <td>${escape(r.concept || '')}</td>
-        <td>${escape(r.created_by || '')}</td>
-      </tr>
-    `).join('');
-  return `<!DOCTYPE html>
-  <html>
-    <head>
-      <meta charset="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <style>${css}</style>
-      <title>Transfers Report</title>
-    </head>
-    <body>
-      <h1>Transfers Report</h1>
-      <div class="meta">Generado ${dayjs().format('YYYY-MM-DD HH:mm')}</div>
-      <table>
-        <thead>
-          <tr>
-            <th>id</th>
-            <th>date</th>
-            <th>from</th>
-            <th>to</th>
-            <th>curr</th>
-            <th>amount</th>
-            <th>commission</th>
-            <th>concept</th>
-            <th>created_by</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsHtml}
-        </tbody>
-      </table>
-    </body>
-  </html>`;
-}
+const createTransfersPdfBuffer = async ({ rows }) => {
+  const { pdf, Document, Page, Text, View, StyleSheet } = reactPdf;
+  const h = React.createElement;
+  const styles = StyleSheet.create({
+    page: { padding: 24, fontSize: 9, color: '#111827', fontFamily: 'Helvetica' },
+    title: { fontSize: 16, textAlign: 'center', marginBottom: 6, fontWeight: 700 },
+    meta: { fontSize: 9, textAlign: 'center', color: '#6B7280', marginBottom: 12 },
+    table: { display: 'flex', flexDirection: 'column', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 6 },
+    headerRow: { flexDirection: 'row', backgroundColor: '#111827', color: '#FFFFFF', paddingVertical: 6, paddingHorizontal: 6 },
+    row: { flexDirection: 'row', paddingVertical: 6, paddingHorizontal: 6, borderTopWidth: 1, borderTopColor: '#E5E7EB' },
+    rowAlt: { backgroundColor: '#F9FAFB' },
+    cell: { paddingRight: 4 },
+    colId: { width: 30 },
+    colDate: { width: 50 },
+    colFrom: { width: 70 },
+    colTo: { width: 70 },
+    colCurr: { width: 26 },
+    colAmount: { width: 55, textAlign: 'right' },
+    colCommission: { width: 55, textAlign: 'right' },
+    colConcept: { width: 90 },
+    colCreated: { width: 70 },
+  });
 
-// --- New: Transactions List (EPIC) HTML ---
-function renderTransactionsListHtml({ items = [], accounts = [], categories = [], title = 'Transactions', createdBy = '' }) {
-  const css = `
-    * { box-sizing: border-box; }
-    body { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji','Segoe UI Emoji'; color: #111827; margin: 24px; }
-    header { display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
-    h1 { font-size: 20px; margin: 0; color: #111827; }
-    .meta { font-size: 12px; color: #6B7280; }
-    .day { display:flex; align-items:center; gap:8px; margin: 22px 0 10px; color:#374151; }
-    .day .line { flex:1; height:1px; background:#E5E7EB; }
-    .badge { display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:999px; background:#F3F4F6; color:#374151; font-size:11px; }
-    .list { display:flex; flex-direction:column; gap:10px; }
-    .item { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:12px; border:1px solid #E5E7EB; background:#FFFFFF; }
-    .icon { width:28px; height:28px; border-radius:999px; display:flex; align-items:center; justify-content:center; font-size:14px; }
-    .icon.income { background:#ECFDF5; color:#059669; }
-    .icon.expense { background:#FEF2F2; color:#DC2626; }
-    .stack { flex:1; }
-    .title { font-size:13px; color:#111827; margin:0 0 2px 0; }
-    .sub { display:flex; gap:8px; align-items:center; color:#6B7280; font-size:11px; }
-    .pill { display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:999px; font-size:11px; border:1px solid #E5E7EB; color:#374151; }
-    .category { border:1px solid #E5E7EB; }
-    .amount { text-align:right; }
-    .amount .main { font-weight:600; font-variant-numeric: tabular-nums; }
-    .amount .usd { color:#6B7280; font-size:11px; }
-  `;
-  const escape = (s) => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const nfVE = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const nfUS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const headerCells = [
+    h(Text, { style: [styles.cell, styles.colId] }, 'id'),
+    h(Text, { style: [styles.cell, styles.colDate] }, 'date'),
+    h(Text, { style: [styles.cell, styles.colFrom] }, 'from'),
+    h(Text, { style: [styles.cell, styles.colTo] }, 'to'),
+    h(Text, { style: [styles.cell, styles.colCurr] }, 'curr'),
+    h(Text, { style: [styles.cell, styles.colAmount] }, 'amount'),
+    h(Text, { style: [styles.cell, styles.colCommission] }, 'commission'),
+    h(Text, { style: [styles.cell, styles.colConcept] }, 'concept'),
+    h(Text, { style: [styles.cell, styles.colCreated] }, 'created_by'),
+  ];
 
+  const rowsElements = rows.map((r, idx) => h(View, { key: String(r.id ?? idx), style: [styles.row, idx % 2 ? styles.rowAlt : null] }, [
+    h(Text, { style: [styles.cell, styles.colId] }, String(r.id ?? '')),
+    h(Text, { style: [styles.cell, styles.colDate] }, String(r.date ?? '')),
+    h(Text, { style: [styles.cell, styles.colFrom] }, String(r.from_account ?? '')),
+    h(Text, { style: [styles.cell, styles.colTo] }, String(r.to_account ?? '')),
+    h(Text, { style: [styles.cell, styles.colCurr] }, String(r.currency ?? '')),
+    h(Text, { style: [styles.cell, styles.colAmount] }, String(r.amount ?? '')),
+    h(Text, { style: [styles.cell, styles.colCommission] }, r.commission ? String(r.commission) : '-'),
+    h(Text, { style: [styles.cell, styles.colConcept] }, String(r.concept ?? '')),
+    h(Text, { style: [styles.cell, styles.colCreated] }, String(r.created_by ?? '')),
+  ]));
+
+  const doc = h(Document, null,
+    h(Page, { size: 'A4', style: styles.page }, [
+      h(Text, { style: styles.title }, 'Transfers Report'),
+      h(Text, { style: styles.meta }, `Generado ${dayjs().format('YYYY-MM-DD HH:mm')}`),
+      h(View, { style: styles.table }, [
+        h(View, { style: styles.headerRow }, headerCells),
+        ...rowsElements,
+      ]),
+    ]),
+  );
+
+  const buffer = await pdf(doc).toBuffer();
+  return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+};
+
+const buildTransactionsListModel = ({ items = [], accounts = [], categories = [] }) => {
   const accById = new Map(accounts.map(a => [Number(a.id), a]));
   const catById = new Map(categories.map(c => [Number(c.id), c]));
 
-  // group items by date desc
   const groups = new Map();
   for (const it of items) {
     const d = it.date;
     if (!groups.has(d)) groups.set(d, []);
     groups.get(d).push(it);
   }
-  const sortedDates = Array.from(groups.keys()).sort((a,b)=> a<b ? 1 : (a>b ? -1 : 0));
+  const sortedDates = Array.from(groups.keys()).sort((a, b) => (a < b ? 1 : (a > b ? -1 : 0)));
+
+  return { accById, catById, groups, sortedDates };
+};
+
+const createTransactionsListPdfBuffer = async ({ items = [], accounts = [], categories = [], title = 'Mis Transacciones', createdBy = '' }) => {
+  const { pdf, Document, Page, Text, View, StyleSheet } = reactPdf;
+  const h = React.createElement;
+  const nfVE = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const nfUS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const { accById, catById, groups, sortedDates } = buildTransactionsListModel({ items, accounts, categories });
+
+  const styles = StyleSheet.create({
+    page: { padding: 24, fontSize: 10, color: '#111827', fontFamily: 'Helvetica' },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    title: { fontSize: 16, fontWeight: 700 },
+    meta: { fontSize: 9, color: '#6B7280' },
+    dayHeader: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 6 },
+    line: { flexGrow: 1, height: 1, backgroundColor: '#E5E7EB' },
+    badge: { paddingVertical: 2, paddingHorizontal: 8, backgroundColor: '#F3F4F6', borderRadius: 10, marginHorizontal: 8, fontSize: 9, color: '#374151' },
+    list: { flexDirection: 'column' },
+    item: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: '#E5E7EB', backgroundColor: '#FFFFFF', marginBottom: 6 },
+    icon: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 8, fontSize: 10 },
+    iconIncome: { backgroundColor: '#ECFDF5', color: '#059669' },
+    iconExpense: { backgroundColor: '#FEF2F2', color: '#DC2626' },
+    stack: { flexGrow: 1 },
+    titleText: { fontSize: 10, marginBottom: 2 },
+    subRow: { flexDirection: 'row', alignItems: 'center' },
+    pill: { borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, paddingVertical: 1, paddingHorizontal: 6, fontSize: 8, color: '#374151', marginRight: 6 },
+    amount: { textAlign: 'right' },
+    amountMain: { fontSize: 10, fontWeight: 600 },
+    amountUsd: { fontSize: 8, color: '#6B7280' },
+  });
 
   const fmtDateLong = (iso) => {
     const dt = new Date(iso);
@@ -115,12 +121,17 @@ function renderTransactionsListHtml({ items = [], accounts = [], categories = []
     return `${weekdays[dt.getUTCDay()]}, ${months[dt.getUTCMonth()]} ${dt.getUTCDate()}, ${dt.getUTCFullYear()}`;
   };
 
-  const dayBlocks = sortedDates.map(date => {
+  const dayBlocks = sortedDates.flatMap(date => {
     const dayItems = groups.get(date) || [];
-    // if mixed rates in same day, take median
-    const rates = dayItems.map(i => Number(i.exchangeRateUsed)).filter(v => Number.isFinite(v) && v>0).sort((a,b)=>a-b);
-    const rate = rates.length ? (rates[Math.floor(rates.length/2)]) : null;
-    const itemsHtml = dayItems.map(it => {
+    const rates = dayItems.map(i => Number(i.exchangeRateUsed)).filter(v => Number.isFinite(v) && v > 0).sort((a, b) => a - b);
+    const rate = rates.length ? rates[Math.floor(rates.length / 2)] : null;
+    const header = h(View, { key: `day-${date}`, style: styles.dayHeader }, [
+      h(View, { style: styles.line }),
+      h(Text, { style: styles.badge }, `${fmtDateLong(date)}${rate ? ` • Tasa: ${nfUS.format(rate)}` : ''}`),
+      h(View, { style: styles.line }),
+    ]);
+
+    const itemsEls = dayItems.map((it, idx) => {
       const typeKey = (it.type === 'ingreso' || it.type === 'income') ? 'income' : 'expense';
       const acc = accById.get(Number(it.accountId));
       const cat = catById.get(Number(it.categoryId));
@@ -129,53 +140,46 @@ function renderTransactionsListHtml({ items = [], accounts = [], categories = []
       const sign = typeKey === 'expense' ? '-' : '+';
       const curr = it.currency || (acc?.currency) || '';
       const currLabel = curr === 'VES' ? 'Bs.' : '$';
-      const mainAmount = `${sign}${currLabel}${curr==='VES'? nfVE.format(amountNum) : nfUS.format(amountNum)}`;
+      const mainAmount = `${sign}${currLabel}${curr === 'VES' ? nfVE.format(amountNum) : nfUS.format(amountNum)}`;
       const usdTxt = `≈ ${sign}$${nfUS.format(amountUsdNum)} USD`;
-      const catColor = cat?.color || '#E5E7EB';
       const catName = cat?.name || 'Sin categoría';
       const accName = acc?.name || `#${it.accountId}`;
-      return `
-        <div class="item">
-          <div class="icon ${typeKey}">${typeKey==='income'?'⬆':'⬇'}</div>
-          <div class="stack">
-            <div class="title">${escape(it.description)}</div>
-            <div class="sub">
-              <span class="pill" style="background:${catColor}22; border-color:${catColor}55; color:#111827">${escape(catName)}</span>
-              <span class="pill">${escape(accName)} <span class="meta">${escape(curr)}</span></span>
-            </div>
-          </div>
-          <div class="amount">
-            <div class="main">${mainAmount}</div>
-            <div class="usd">${usdTxt}</div>
-          </div>
-        </div>`;
-    }).join('');
-    return `
-      <div class="day">
-        <div class="line"></div>
-        <div class="badge">${escape(fmtDateLong(date))}${rate?` • Tasa: ${nfUS.format(rate)}`:''}</div>
-        <div class="line"></div>
-      </div>
-      <div class="list">${itemsHtml}</div>`;
-  }).join('');
 
-  return `<!DOCTYPE html>
-  <html>
-    <head>
-      <meta charset="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <style>${css}</style>
-      <title>${escape(title)}</title>
-    </head>
-    <body>
-      <header>
-        <h1>${escape(title)}</h1>
-        <div class="meta">Generado ${dayjs().format('YYYY-MM-DD HH:mm')} ${createdBy?`• ${escape(createdBy)}`:''}</div>
-      </header>
-      ${dayBlocks}
-    </body>
-  </html>`;
-}
+      return h(View, { key: `item-${date}-${idx}`, style: styles.item, wrap: false }, [
+        h(View, { style: [styles.icon, typeKey === 'income' ? styles.iconIncome : styles.iconExpense] },
+          h(Text, null, typeKey === 'income' ? '↑' : '↓')
+        ),
+        h(View, { style: styles.stack }, [
+          h(Text, { style: styles.titleText }, String(it.description || '')),
+          h(View, { style: styles.subRow }, [
+            h(Text, { style: [styles.pill, { borderColor: '#E5E7EB' }] }, catName),
+            h(Text, { style: [styles.pill, { marginRight: 0 }] }, `${accName} ${curr ? `• ${curr}` : ''}`),
+          ]),
+        ]),
+        h(View, { style: styles.amount }, [
+          h(Text, { style: styles.amountMain }, mainAmount),
+          h(Text, { style: styles.amountUsd }, usdTxt),
+        ]),
+      ]);
+    });
+
+    const list = h(View, { key: `list-${date}`, style: styles.list }, itemsEls);
+    return [header, list];
+  });
+
+  const doc = h(Document, null,
+    h(Page, { size: 'A4', style: styles.page }, [
+      h(View, { style: styles.header }, [
+        h(Text, { style: styles.title }, String(title)),
+        h(Text, { style: styles.meta }, `Generado ${dayjs().format('YYYY-MM-DD HH:mm')}${createdBy ? ` • ${createdBy}` : ''}`),
+      ]),
+      ...dayBlocks,
+    ]),
+  );
+
+  const buffer = await pdf(doc).toBuffer();
+  return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+};
 
 async function buildTransfersExport({ userId, fromDate, toDate, accountId, includeCommission, createdBy, format }) {
   const rows = await txService.getTransferExportRows({ userId, fromDate, toDate, accountId, includeCommission, createdBy });
@@ -204,25 +208,13 @@ async function buildTransfersExport({ userId, fromDate, toDate, accountId, inclu
   }
 
   if (format === 'pdf') {
-    // Prefer Puppeteer (HTML->PDF) for better design; fallback to PDFKit if missing/disabled
-    const usePuppeteer = config.exportPdfEngine === 'puppeteer' && puppeteer;
-    if (usePuppeteer) {
-      const html = renderTransfersHtml(rows);
-      const browser = await puppeteer.launch({ args: ['--no-sandbox','--disable-setuid-sandbox'] });
-      try {
-        const page = await browser.newPage();
-        await page.setContent(html, { waitUntil: 'networkidle0' });
-        const pdfBuffer = await page.pdf({
-          format: 'A4',
-          printBackground: true,
-          margin: { top: '15mm', right: '10mm', bottom: '15mm', left: '10mm' },
-        });
-        const stream = new PassThrough();
-        stream.end(pdfBuffer);
-        return { contentType: 'application/pdf', filename, stream };
-      } finally {
-        await browser.close();
-      }
+    // Prefer React-PDF for server-side rendering; fallback to PDFKit if missing/disabled
+    const useReactPdf = config.exportPdfEngine === 'react-pdf' && reactPdf;
+    if (useReactPdf) {
+      const pdfBuffer = await createTransfersPdfBuffer({ rows });
+      const stream = new PassThrough();
+      stream.end(pdfBuffer);
+      return { contentType: 'application/pdf', filename, stream };
     }
 
     // Fallback: simple PDFKit layout
@@ -263,19 +255,14 @@ async function buildTransfersExport({ userId, fromDate, toDate, accountId, inclu
 async function buildTransactionsListExport({ data, format = 'pdf' }) {
   const filename = `transactions_${dayjs().format('YYYY-MM-DD')}.${format}`;
 
-  const html = renderTransactionsListHtml({
-    items: data?.items || [],
-    accounts: data?.accounts || data?.accountsData || [],
-    categories: data?.categories || data?.categoriesData || [],
-    title: data?.title || 'Mis Transacciones',
-    createdBy: data?.createdBy || '',
-  });
+  const items = data?.items || [];
+  const accounts = data?.accounts || data?.accountsData || [];
+  const categories = data?.categories || data?.categoriesData || [];
+  const title = data?.title || 'Mis Transacciones';
+  const createdBy = data?.createdBy || '';
 
   // XLSX path
   if (format === 'xlsx') {
-    const items = data?.items || [];
-    const accounts = data?.accounts || data?.accountsData || [];
-    const categories = data?.categories || data?.categoriesData || [];
     const accById = new Map(accounts.map(a => [Number(a.id), a]));
     const catById = new Map(categories.map(c => [Number(c.id), c]));
 
@@ -316,29 +303,21 @@ async function buildTransactionsListExport({ data, format = 'pdf' }) {
     return { contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename, stream };
   }
 
-  // Prefer puppeteer for fidelity, fallback to PDFKit minimal
-  const usePuppeteer = config.exportPdfEngine === 'puppeteer' && puppeteer;
-  if (usePuppeteer) {
-    const browser = await puppeteer.launch({ args: ['--no-sandbox','--disable-setuid-sandbox'] });
-    try {
-      const page = await browser.newPage();
-      await page.setContent(html, { waitUntil: 'networkidle0' });
-      const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true, margin: { top: '10mm', right: '10mm', bottom: '12mm', left: '10mm' } });
-      const stream = new PassThrough();
-      stream.end(pdfBuffer);
-      return { contentType: 'application/pdf', filename, stream };
-    } finally {
-      await browser.close();
-    }
+  // Prefer React-PDF for fidelity, fallback to PDFKit minimal
+  const useReactPdf = config.exportPdfEngine === 'react-pdf' && reactPdf;
+  if (useReactPdf) {
+    const pdfBuffer = await createTransactionsListPdfBuffer({ items, accounts, categories, title, createdBy });
+    const stream = new PassThrough();
+    stream.end(pdfBuffer);
+    return { contentType: 'application/pdf', filename, stream };
   }
 
   // Fallback basic layout with PDFKit
   const stream = new PassThrough();
   const doc = new PDFDocument({ margin: 40, size: 'A4' });
   doc.pipe(stream);
-  doc.fontSize(14).text(data?.title || 'Mis Transacciones', { align: 'center' });
+  doc.fontSize(14).text(title || 'Mis Transacciones', { align: 'center' });
   doc.moveDown(0.5);
-  const items = data?.items || [];
   const nfUS = new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const nfVE = new Intl.NumberFormat('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   let currentDate = null;
