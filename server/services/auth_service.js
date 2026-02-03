@@ -9,16 +9,23 @@ function generateToken(id) {
 }
 
 async function login(username, password) {
-  // Use PostgreSQL crypt via sequelize.query for compatibility with existing hashes
-  const [rows] = await sequelize.query(
-    `SELECT id, username, password_hash FROM users WHERE username = :username AND password_hash = crypt(:password, password_hash)`,
-    { replacements: { username, password } }
-  );
-  if (rows.length === 0) return null;
-  const user = rows[0];
+  const user = await models.User.findOne({
+    where: {
+      [Op.or]: [
+        { username },
+        { email: username },
+      ],
+    },
+    attributes: ['id', 'username', 'email', 'name', 'passwordHash'],
+  });
+  if (!user) return null;
+
+  const isValid = await bcrypt.compare(password, user.passwordHash);
+  if (!isValid) return null;
+
   return {
     token: generateToken(user.id),
-    user: { id: user.id, username: user.username },
+    user: { id: user.id, username: user.username, email: user.email, name: user.name },
   };
 }
 
