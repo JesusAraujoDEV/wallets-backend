@@ -34,6 +34,18 @@
  *           description: Tipo de la categoría asociada
  *       required: [id, description, amount, currency, date, categoryId, accountId]
  *     GroupedTransactionsResponse:
+ *       type: object
+ *       properties:
+ *         items:
+ *           type: array
+ *           items:
+ *             $ref: '#/components/schemas/Transaction'
+ *         hasMore:
+ *           type: boolean
+ *         nextCursorDate:
+ *           type: string
+ *           format: date
+ *           nullable: true
  *     TransferRequest:
  *       type: object
  *       properties:
@@ -76,18 +88,6 @@
  *               nullable: true
  *               allOf:
  *                 - $ref: '#/components/schemas/Transaction'
- *       type: object
- *       properties:
- *         items:
- *           type: array
- *           items:
- *             $ref: '#/components/schemas/Transaction'
- *         hasMore:
- *           type: boolean
- *         nextCursorDate:
- *           type: string
- *           format: date
- *           nullable: true
  *
  * tags:
  *   - name: Transactions

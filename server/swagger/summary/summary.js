@@ -2,7 +2,7 @@
  * @swagger
  * tags:
  *   - name: Summary
- *     description: Resmenes y balances
+ *     description: Resúmenes y balances
  *
  * /summary/balance:
  *   get:
@@ -13,23 +13,23 @@
  *         name: q
  *         schema:
  *           type: string
- *         description: Busca en descripcin y nombre de categora
+ *         description: Busca en descripción y nombre de categoría
  *       - in: query
  *         name: categoryId
  *         schema:
  *           type: string
- *         description: IDs de categoras separadas por coma
+ *         description: IDs de categorías separadas por coma para filtrar (ej. "44,20,43")
  *       - in: query
  *         name: accountId
  *         schema:
  *           type: string
- *         description: IDs de cuentas separadas por coma; si se envía un único ID, la respuesta será simplificada con solo el balance de esa cuenta
+ *         description: IDs de cuentas separadas por coma para filtrar; si se envía un único ID, la respuesta será simplificada con solo el balance de esa cuenta
  *       - in: query
  *         name: date
  *         schema:
  *           type: string
  *           format: date
- *         description: Da exacto a filtrar (si no se enva rango o mes)
+ *         description: Día exacto a filtrar (si no se envía rango o mes)
  *       - in: query
  *         name: dateFrom
  *         schema:
@@ -47,24 +47,7 @@
  *         schema:
  *           type: string
  *           pattern: "^\\d{4}-\\d{2}$"
- *         example: "2025-09"
- *         description: Mes a filtrar en formato YYYY-MM
- *       - in: query
- *         name: includeInStats
- *         schema:
- *           type: string
- *           enum: ['0','1','true','false']
- *       - in: query
- *         name: categoryId
- *         schema:
- *           type: string
- *         description: IDs de categorías separados por coma para filtrar (ej. "44,20,43")
- *       - in: query
- *         name: accountId
- *         schema:
- *           type: string
- *         description: IDs de cuentas separados por coma para filtrar
- *         description: Aplica al calculo de ingresos y gastos
+ *         description: Mes a filtrar (YYYY-MM). Aplica al cálculo de ingresos y gastos
  *     responses:
  *       200:
  *         description: Balance calculado
