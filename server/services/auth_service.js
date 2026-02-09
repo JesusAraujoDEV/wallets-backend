@@ -134,9 +134,9 @@ async function loginWithGoogle(token) {
   }
 
   const payloadJwt = {
-    sub: user.id,
-    username: user.username,
-    email: user.email,
+    id: user.id,      // <--- ¡AHORA SÍ! ✅ (Igual que el token de Postman)
+    username: user.username, // (Opcional, pero útil pal frontend)
+    email: user.email        // (Opcional)
   };
   const myToken = jwt.sign(payloadJwt, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
