@@ -49,7 +49,7 @@ class User extends Model {
     this.hasMany(models.Category, { foreignKey: 'user_id' });
     this.hasMany(models.Transaction, { foreignKey: 'user_id' });
     // Aquí agregaremos la sesión de telegram cuando la crees
-    // this.hasOne(models.TelegramSession, { as: 'telegramSession', foreignKey: 'user_id' });
+    this.hasOne(models.TelegramSession, { as: 'telegramSession', foreignKey: 'user_id' });
   }
 
   static config(sequelize) {

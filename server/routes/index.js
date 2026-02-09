@@ -42,6 +42,11 @@ function buildApiRouter() {
     router.use('/stats', statsRouter);
   } catch (e) { console.error('Failed to mount /stats router:', e.message); }
 
+  try {
+    const telegramRouter = require('./telegram_router');
+    router.use('/telegram', telegramRouter);
+  } catch (e) { console.error('Failed to mount /telegram router:', e.message); }
+
   return router;
 }
 

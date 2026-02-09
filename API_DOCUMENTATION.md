@@ -248,6 +248,44 @@
 
 ---
 
+## 🤖 Módulo de Telegram
+
+### 🔗 POST /telegram/link
+**Propósito:** Vincula un chat de Telegram con el usuario autenticado y guarda el JWT actual.
+
+🔐 **Permisos:** Requiere token.
+
+📥 **Request Body**
+```json
+{
+  "chatId": 123456789,
+  "username": "mi_usuario"
+}
+```
+
+📤 **Respuesta Exitosa (201 Created)**
+```json
+{
+  "ok": true,
+  "session": {
+    "chatId": 123456789,
+    "userId": 1,
+    "username": "mi_usuario",
+    "jwtToken": "eyJhbGciOi...",
+    "createdAt": "2026-02-09T12:00:00.000Z",
+    "updatedAt": "2026-02-09T12:00:00.000Z"
+  }
+}
+```
+
+⚠️ **Posibles Errores**
+- **400** si `chatId` no es válido o falta el token en `Authorization`.
+- **401** si el token es inválido o falta.
+
+💡 **Nota de Lógica:** si el usuario reinicia el bot, el vínculo se actualiza sin duplicar registros.
+
+---
+
 ## 🏦 Módulo de Cuentas
 
 ### 📄 GET /accounts

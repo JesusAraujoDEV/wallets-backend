@@ -1,0 +1,97 @@
+openapi: 3.0.0
+
+paths:
+  /telegram/link:
+    post:
+      tags:
+        - Telegram
+      summary: Vincular sesión de Telegram
+      description: Vincula un chat de Telegram con el usuario autenticado y guarda el JWT actual.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelegramLinkRequest'
+            examples:
+              link:
+                value:
+                  chatId: 123456789
+                  username: "mi_usuario"
+      responses:
+        '201':
+          description: Sesión vinculada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramLinkResponse'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    TelegramLinkRequest:
+      type: object
+      required:
+        - chatId
+      properties:
+        chatId:
+          type: integer
+          format: int64
+          description: ID del chat de Telegram
+        username:
+          type: string
+          maxLength: 100
+          description: Username de Telegram (opcional)
+    TelegramLinkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        session:
+          type: object
+          properties:
+            chatId:
+              type: integer
+              format: int64
+            userId:
+              type: integer
+            username:
+              type: string
+              nullable: true
+            jwtToken:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+    ErrorResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: false
+        statusCode:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: BAD_REQUEST
+        message:
+          type: string
+          example: "chatId es requerido."

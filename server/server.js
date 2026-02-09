@@ -4,6 +4,7 @@ const cookieParser = require('cookie-parser');
 const swaggerUi = require('swagger-ui-express');
 const path = require('path');
 const net = require('net');
+const passport = require('passport');
 
 const { config } = require('./config/config');
 const { sequelize } = require('./libs/sequelize');
@@ -35,6 +36,9 @@ async function findAvailablePort(startPort, maxTries = 5) {
 async function bootstrap() {
   const app = express();
 
+  // Passport strategies
+  require('./middlewares/passport');
+
   // CORS with whitelist
   const whitelist = new Set(config.corsWhitelist.map(o => o.toLowerCase()));
   app.use(cors({
@@ -49,6 +53,7 @@ async function bootstrap() {
 
   app.use(express.json());
   app.use(cookieParser());
+  app.use(passport.initialize());
 
   // Request origin logger (tracks Origin/Referer, IP, User-Agent)
   app.use(requestOriginLogger);
