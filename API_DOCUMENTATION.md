@@ -286,6 +286,30 @@
 
 ---
 
+### ✅ GET /telegram/exists
+**Propósito:** Verifica si existe una sesión de Telegram por `chatId` y `username`.
+
+🔐 **Permisos:** Público.
+
+📥 **Query Parameters**
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| chatId | int | ✅ | ID del chat de Telegram |
+| username | string | ✅ | Username de Telegram |
+
+📤 **Respuesta Exitosa (200 OK)**
+```json
+{
+  "ok": true,
+  "exists": true
+}
+```
+
+⚠️ **Posibles Errores**
+- **400** si `chatId` o `username` no son válidos.
+
+---
+
 ## 🏦 Módulo de Cuentas
 
 ### 📄 GET /accounts

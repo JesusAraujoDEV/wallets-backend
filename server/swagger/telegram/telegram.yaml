@@ -40,6 +40,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /telegram/exists:
+    get:
+      tags:
+        - Telegram
+      summary: Verificar si existe sesión
+      description: Verifica si existe una sesión de Telegram por chatId y username.
+      parameters:
+        - in: query
+          name: chatId
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID del chat de Telegram
+        - in: query
+          name: username
+          required: true
+          schema:
+            type: string
+          description: Username de Telegram
+      responses:
+        '200':
+          description: Resultado de verificación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramExistsResponse'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     TelegramLinkRequest:
@@ -80,6 +114,15 @@ components:
             updatedAt:
               type: string
               format: date-time
+    TelegramExistsResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        exists:
+          type: boolean
+          example: true
     ErrorResponse:
       type: object
       properties:

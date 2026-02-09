@@ -6,4 +6,9 @@ const linkTelegramSchema = Joi.object({
   username: Joi.string().max(100).optional(),
 });
 
-module.exports = { linkTelegramSchema };
+const telegramExistsSchema = Joi.object({
+  chatId: Joi.number().integer().required(),
+  username: Joi.string().max(100).required(),
+});
+
+module.exports = { linkTelegramSchema, telegramExistsSchema };

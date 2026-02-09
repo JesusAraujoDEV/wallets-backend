@@ -26,4 +26,20 @@ async function link(req, res, next) {
   }
 }
 
-module.exports = { link };
+async function exists(req, res, next) {
+  try {
+    const { chatId, username } = req.query || {};
+    if (!chatId || !username) throw new BadRequestError('chatId y username son requeridos.');
+
+    const found = await telegramService.existsChat({
+      chatId: Number(chatId),
+      username,
+    });
+
+    return res.json({ ok: true, exists: found });
+  } catch (e) {
+    return next(e);
+  }
+}
+
+module.exports = { link, exists };
