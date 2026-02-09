@@ -3,10 +3,10 @@ const router = express.Router();
 const { protect } = require('../middlewares/auth_handler');
 const authCtrl = require('../controllers/auth_controller');
 const { validator } = require('../middlewares/validator');
-const { registerSchema, googleLoginSchema } = require('../schemas/auth_schema');
+const { registerSchema, googleLoginSchema, loginSchema } = require('../schemas/auth_schema');
 
 // Login
-router.post('/login', authCtrl.login);
+router.post('/login', validator(loginSchema), authCtrl.login);
 
 // Register
 router.post('/register', validator(registerSchema), authCtrl.register);

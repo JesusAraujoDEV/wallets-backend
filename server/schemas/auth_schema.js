@@ -12,4 +12,10 @@ const googleLoginSchema = Joi.object({
   token: Joi.string().min(10).required(),
 });
 
-module.exports = { registerSchema, googleLoginSchema };
+const loginSchema = Joi.object({
+  username: Joi.string().min(3).max(120).optional(),
+  email: Joi.string().email().max(160).optional(),
+  password: Joi.string().min(6).max(200).required(),
+}).xor('username', 'email');
+
+module.exports = { registerSchema, googleLoginSchema, loginSchema };

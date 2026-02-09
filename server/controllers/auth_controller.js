@@ -3,9 +3,10 @@ const { BadRequestError } = require('../utils/errors');
 
 async function login(req, res, next) {
   try {
-    const { username, password } = req.body || {};
-    if (!username || !password) throw new BadRequestError('Usuario y contraseña requeridos.');
-    const result = await authService.login(username, password);
+    const { username, email, password } = req.body || {};
+    const identifier = username || email;
+    if (!identifier || !password) throw new BadRequestError('Usuario/email y contraseña requeridos.');
+    const result = await authService.login(identifier, password);
     if (!result) return res.status(401).json({ ok: false, statusCode: 401, error: 'UNAUTHORIZED', message: 'Credenciales inválidas.' });
     return res.json({ ok: true, token: result.token, user: result.user });
   } catch (e) {
