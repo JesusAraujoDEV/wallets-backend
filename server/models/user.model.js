@@ -45,9 +45,9 @@ const UserSchema = {
 class User extends Model {
   static associate(models) {
     // Definimos las relaciones aquí
-    this.hasMany(models.Account, { as: 'accounts', foreignKey: 'user_id' });
-    this.hasMany(models.Category, { as: 'categories', foreignKey: 'user_id' });
-    this.hasMany(models.Transaction, { as: 'transactions', foreignKey: 'user_id' });
+    this.hasMany(models.Account, { foreignKey: 'user_id' });
+    this.hasMany(models.Category, { foreignKey: 'user_id' });
+    this.hasMany(models.Transaction, { foreignKey: 'user_id' });
     // Aquí agregaremos la sesión de telegram cuando la crees
     // this.hasOne(models.TelegramSession, { as: 'telegramSession', foreignKey: 'user_id' });
   }

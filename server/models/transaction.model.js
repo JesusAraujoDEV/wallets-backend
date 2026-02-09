@@ -72,9 +72,9 @@ const TransactionSchema = {
 
 class Transaction extends Model {
   static associate(models) {
-    this.belongsTo(models.User, { as: 'user', foreignKey: 'user_id' });
-    this.belongsTo(models.Account, { as: 'account', foreignKey: 'account_id' });
-    this.belongsTo(models.Category, { as: 'category', foreignKey: 'category_id' });
+    this.belongsTo(models.User, { foreignKey: 'user_id' });
+    this.belongsTo(models.Account, { foreignKey: 'account_id' });
+    this.belongsTo(models.Category, { foreignKey: 'category_id' });
   }
 
   static config(sequelize) {
