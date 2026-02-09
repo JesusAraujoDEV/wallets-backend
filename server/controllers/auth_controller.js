@@ -32,4 +32,15 @@ async function register(req, res, next) {
   }
 }
 
-module.exports = { login, me, logout, register };
+async function loginGoogle(req, res, next) {
+  try {
+    const { token } = req.body || {};
+    if (!token) throw new BadRequestError('El token de Google es requerido');
+    const result = await authService.loginWithGoogle(token);
+    return res.json({ ok: true, token: result.token, user: result.user });
+  } catch (e) {
+    return next(e);
+  }
+}
+
+module.exports = { login, me, logout, register, loginGoogle };

@@ -1,11 +1,25 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { Op } = require('sequelize');
+const { OAuth2Client } = require('google-auth-library');
 const { sequelize, models } = require('../libs/sequelize');
-const { ConflictError } = require('../utils/errors');
+const { ConflictError, UnauthorizedError } = require('../utils/errors');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 function generateToken(id) {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '7d' });
+}
+
+async function buildUniqueUsername(base) {
+  const normalized = (base || 'user').toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 100) || 'user';
+  let candidate = normalized;
+  let suffix = 0;
+  while (await models.User.findOne({ where: { username: candidate }, attributes: ['id'] })) {
+    suffix += 1;
+    candidate = `${normalized}${suffix}`.slice(0, 120);
+  }
+  return candidate;
 }
 
 async function login(username, password) {
@@ -66,4 +80,71 @@ async function register({ username, email, password, name }) {
   });
 }
 
-module.exports = { login, register };
+async function loginWithGoogle(token) {
+  let ticket;
+  try {
+    ticket = await googleClient.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+  } catch (error) {
+    throw new UnauthorizedError('El token de Google no es válido o ha expirado.', error?.message);
+  }
+
+  const payload = ticket.getPayload();
+  const { email, name } = payload || {};
+  if (!email) throw new UnauthorizedError('El token de Google no contiene email válido.');
+
+  let user = await models.User.findOne({
+    where: { email },
+    attributes: ['id', 'username', 'email', 'name', 'passwordHash'],
+  });
+
+  if (!user) {
+    const baseUsername = email.split('@')[0];
+    const username = await buildUniqueUsername(baseUsername);
+    const randomPassword = `${Math.random().toString(36).slice(-8)}${Math.random().toString(36).slice(-8)}`;
+    const passwordHash = await bcrypt.hash(randomPassword, 10);
+
+    user = await sequelize.transaction(async (t) => {
+      const created = await models.User.create({
+        email,
+        name: name || null,
+        username,
+        passwordHash,
+      }, { transaction: t });
+
+      await models.Account.create({
+        name: 'Efectivo',
+        type: 'efectivo',
+        currency: 'USD',
+        balance: 0,
+        userId: created.id,
+      }, { transaction: t });
+
+      await models.Category.bulkCreate([
+        { name: 'Comida', type: 'gasto', userId: created.id, icon: 'Pizza', color: '#F59E0B', colorName: 'Amber' },
+        { name: 'Transporte', type: 'gasto', userId: created.id, icon: 'Car', color: '#3B82F6', colorName: 'Blue' },
+        { name: 'Servicios', type: 'gasto', userId: created.id, icon: 'Zap', color: '#EF4444', colorName: 'Red' },
+        { name: 'Salario', type: 'ingreso', userId: created.id, icon: 'DollarSign', color: '#10B981', colorName: 'Emerald' },
+      ], { transaction: t });
+
+      return created;
+    });
+  }
+
+  const payloadJwt = {
+    sub: user.id,
+    username: user.username,
+    email: user.email,
+  };
+  const myToken = jwt.sign(payloadJwt, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+  });
+
+  const userData = user.toJSON();
+  delete userData.passwordHash;
+  return { token: myToken, user: userData };
+}
+
+module.exports = { login, register, loginWithGoogle };

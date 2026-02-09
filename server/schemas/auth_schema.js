@@ -8,4 +8,8 @@ const registerSchema = Joi.object({
   password: Joi.string().min(6).max(200).required(),
 });
 
-module.exports = { registerSchema };
+const googleLoginSchema = Joi.object({
+  token: Joi.string().min(10).required(),
+});
+
+module.exports = { registerSchema, googleLoginSchema };
