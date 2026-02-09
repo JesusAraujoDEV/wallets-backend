@@ -166,6 +166,40 @@
 
 ---
 
+### 🧩 POST /auth/google-login
+**Propósito:** Valida el token de Google, crea el usuario si no existe (onboarding) y devuelve un JWT propio.
+
+🔐 **Permisos:** Público.
+
+📥 **Request Body**
+```json
+{
+  "token": "eyJhbGciOi..." 
+}
+```
+
+📤 **Respuesta Exitosa (200 OK)**
+```json
+{
+  "ok": true,
+  "token": "eyJhbGciOi...",
+  "user": {
+    "id": 1,
+    "username": "demo",
+    "email": "demo@correo.com",
+    "name": "Demo User"
+  }
+}
+```
+
+⚠️ **Posibles Errores**
+- **400** si el body no contiene `token`.
+- **401** si el token de Google es inválido o expiró.
+
+💡 **Nota de Lógica:** si el usuario no existe, se crea automáticamente una cuenta inicial **Efectivo** (USD, balance 0) y categorías base (Comida, Transporte, Servicios, Salario).
+
+---
+
 ### 🔐 GET /auth/me
 **Propósito:** Obtiene el usuario autenticado actual.
 

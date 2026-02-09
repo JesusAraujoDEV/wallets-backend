@@ -22,6 +22,7 @@ const corsOptions = {
     // No fijamos allowedHeaders para que el paquete 'cors' refleje Access-Control-Request-Headers automáticamente
     optionsSuccessStatus: 204,
 };
+app.use(express.json());
 app.use(cors(corsOptions));
 // Responder preflights para cualquier ruta
 app.options('*', cors(corsOptions));
