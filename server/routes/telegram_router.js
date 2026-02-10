@@ -3,7 +3,7 @@ const passport = require('passport');
 const telegramCtrl = require('../controllers/telegram_controller');
 const { validator } = require('../middlewares/validator');
 const { telegramSessionSchema } = require('../schemas/telegram.schema');
-const { telegramExistsSchema, telegramGetByChatIdSchema } = require('../schemas/telegram_schema');
+const { telegramExistsSchema, telegramGetByChatIdSchema, telegramDeleteByChatIdSchema } = require('../schemas/telegram_schema');
 const { BadRequestError } = require('../utils/errors');
 
 const router = express.Router();
@@ -34,6 +34,12 @@ router.get(
   '/session',
   validator(telegramGetByChatIdSchema, 'query'),
   telegramCtrl.getByChatId,
+);
+
+router.delete(
+  '/session',
+  validator(telegramDeleteByChatIdSchema, 'query'),
+  telegramCtrl.removeByChatId,
 );
 
 module.exports = router;

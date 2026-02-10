@@ -25,4 +25,9 @@ async function getByChatId(chatId) {
   return session ? session.toJSON() : null;
 }
 
-module.exports = { linkChat, existsChat, getByChatId };
+async function deleteByChatId(chatId) {
+  const result = await models.TelegramSession.destroy({ where: { chatId } });
+  return result > 0;
+}
+
+module.exports = { linkChat, existsChat, getByChatId, deleteByChatId };

@@ -107,6 +107,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Telegram
+      summary: Eliminar sesión por chatId
+      description: Elimina la sesión de Telegram asociada al chatId.
+      parameters:
+        - in: query
+          name: chatId
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID del chat de Telegram
+      responses:
+        '200':
+          description: Sesión eliminada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramDeleteResponse'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
@@ -155,6 +187,12 @@ components:
           type: boolean
           example: true
         exists:
+          type: boolean
+          example: true
+    TelegramDeleteResponse:
+      type: object
+      properties:
+        ok:
           type: boolean
           example: true
     ErrorResponse:

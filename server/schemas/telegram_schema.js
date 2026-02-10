@@ -15,4 +15,8 @@ const telegramGetByChatIdSchema = Joi.object({
   chatId: Joi.number().integer().required(),
 });
 
-module.exports = { linkTelegramSchema, telegramExistsSchema, telegramGetByChatIdSchema };
+const telegramDeleteByChatIdSchema = Joi.object({
+  chatId: Joi.number().integer().required(),
+});
+
+module.exports = { linkTelegramSchema, telegramExistsSchema, telegramGetByChatIdSchema, telegramDeleteByChatIdSchema };

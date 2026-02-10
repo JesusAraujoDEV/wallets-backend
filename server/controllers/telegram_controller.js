@@ -55,4 +55,18 @@ async function getByChatId(req, res, next) {
   }
 }
 
-module.exports = { link, exists, getByChatId };
+async function removeByChatId(req, res, next) {
+  try {
+    const { chatId } = req.query || {};
+    if (!chatId) throw new BadRequestError('chatId es requerido.');
+
+    const deleted = await telegramService.deleteByChatId(Number(chatId));
+    if (!deleted) throw new NotFoundError('Sesión de Telegram no encontrada.');
+
+    return res.json({ ok: true });
+  } catch (e) {
+    return next(e);
+  }
+}
+
+module.exports = { link, exists, getByChatId, removeByChatId };

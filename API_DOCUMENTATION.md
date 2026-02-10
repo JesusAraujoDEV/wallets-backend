@@ -341,6 +341,29 @@
 
 ---
 
+### 🗑️ DELETE /telegram/session
+**Propósito:** Elimina la sesión de Telegram por `chatId`.
+
+🔐 **Permisos:** Público.
+
+📥 **Query Parameters**
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| chatId | int | ✅ | ID del chat de Telegram |
+
+📤 **Respuesta Exitosa (200 OK)**
+```json
+{
+  "ok": true
+}
+```
+
+⚠️ **Posibles Errores**
+- **400** si `chatId` no es válido.
+- **404** si la sesión no existe.
+
+---
+
 ## 🏦 Módulo de Cuentas
 
 ### 📄 GET /accounts
