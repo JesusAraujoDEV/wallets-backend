@@ -1,4 +1,4 @@
-const { BadRequestError } = require('../utils/errors');
+const { BadRequestError, NotFoundError } = require('../utils/errors');
 const telegramService = require('../services/telegram_service');
 
 async function link(req, res, next) {
@@ -41,4 +41,18 @@ async function exists(req, res, next) {
   }
 }
 
-module.exports = { link, exists };
+async function getByChatId(req, res, next) {
+  try {
+    const { chatId } = req.query || {};
+    if (!chatId) throw new BadRequestError('chatId es requerido.');
+
+    const session = await telegramService.getByChatId(Number(chatId));
+    if (!session) throw new NotFoundError('Sesión de Telegram no encontrada.');
+
+    return res.json({ ok: true, session });
+  } catch (e) {
+    return next(e);
+  }
+}
+
+module.exports = { link, exists, getByChatId };

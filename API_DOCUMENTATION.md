@@ -310,6 +310,37 @@
 
 ---
 
+### 📄 GET /telegram/session
+**Propósito:** Obtiene la sesión de Telegram por `chatId`.
+
+🔐 **Permisos:** Público.
+
+📥 **Query Parameters**
+| Parámetro | Tipo | Requerido | Descripción |
+|-----------|------|-----------|-------------|
+| chatId | int | ✅ | ID del chat de Telegram |
+
+📤 **Respuesta Exitosa (200 OK)**
+```json
+{
+  "ok": true,
+  "session": {
+    "chatId": 123456789,
+    "userId": 1,
+    "username": "mi_usuario",
+    "jwtToken": "eyJhbGciOi...",
+    "createdAt": "2026-02-09T12:00:00.000Z",
+    "updatedAt": "2026-02-09T12:00:00.000Z"
+  }
+}
+```
+
+⚠️ **Posibles Errores**
+- **400** si `chatId` no es válido.
+- **404** si la sesión no existe.
+
+---
+
 ## 🏦 Módulo de Cuentas
 
 ### 📄 GET /accounts

@@ -74,6 +74,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /telegram/session:
+    get:
+      tags:
+        - Telegram
+      summary: Obtener sesión por chatId
+      description: Devuelve los datos de la sesión de Telegram asociada al chatId.
+      parameters:
+        - in: query
+          name: chatId
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: ID del chat de Telegram
+      responses:
+        '200':
+          description: Sesión encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelegramLinkResponse'
+        '400':
+          description: Solicitud inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: No encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     TelegramLinkRequest:

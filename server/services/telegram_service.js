@@ -20,4 +20,9 @@ async function existsChat({ chatId, username }) {
   return !!session;
 }
 
-module.exports = { linkChat, existsChat };
+async function getByChatId(chatId) {
+  const session = await models.TelegramSession.findByPk(chatId);
+  return session ? session.toJSON() : null;
+}
+
+module.exports = { linkChat, existsChat, getByChatId };
