@@ -3,8 +3,7 @@ const telegramService = require('../services/telegram_service');
 
 async function link(req, res, next) {
   try {
-    const { chatId, username } = req.body || {};
-    const userId = req.user?.id;
+    const { chat_id: chatId, user_id: userId, username } = req.body || {};
 
     if (!userId) throw new BadRequestError('Usuario autenticado requerido.');
     if (!chatId) throw new BadRequestError('chatId es requerido.');
