@@ -5,7 +5,7 @@ const registerSchema = Joi.object({
   username: Joi.string()
     .pattern(/^[A-Za-z0-9._-]+$/)
     .min(3)
-    .max(120)
+    .max(25)
     .required()
     .messages({ 'string.pattern.base': 'El username solo puede contener letras, números, puntos, guiones bajos y guiones.' }),
   // Name: only letters and spaces (allow accents). No numbers or emojis.
