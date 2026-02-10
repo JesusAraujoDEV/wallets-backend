@@ -3,12 +3,11 @@ const Joi = require('joi');
 
 const registerSchema = Joi.object({
   username: Joi.string()
-    .lowercase()
-    .pattern(/^[a-z0-9._-]+$/)
+    .pattern(/^[A-Za-z0-9._-]+$/)
     .min(3)
     .max(120)
     .required()
-    .messages({ 'string.pattern.base': 'El username solo puede contener letras minúsculas, números, puntos, guiones bajos y guiones.' }),
+    .messages({ 'string.pattern.base': 'El username solo puede contener letras, números, puntos, guiones bajos y guiones.' }),
   // Name: only letters and spaces (allow accents). No numbers or emojis.
   name: Joi.string()
     .pattern(/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/)
@@ -31,7 +30,7 @@ const googleLoginSchema = Joi.object({
 });
 
 const loginSchema = Joi.object({
-  username: Joi.string().lowercase().pattern(/^[a-z0-9._-]+$/).min(3).max(120).optional().messages({ 'string.pattern.base': 'El username solo puede contener letras minúsculas, números, puntos, guiones bajos y guiones.' }),
+  username: Joi.string().pattern(/^[A-Za-z0-9._-]+$/).min(3).max(120).optional().messages({ 'string.pattern.base': 'El username solo puede contener letras, números, puntos, guiones bajos y guiones.' }),
   email: Joi.string().email().max(160).optional(),
   password: Joi.string().min(6).max(200).required(),
 }).xor('username', 'email');
