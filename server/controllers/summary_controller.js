@@ -3,7 +3,8 @@ const txService = require('../services/transaction_service');
 async function balance(req, res, next) {
   try {
     const userId = req.user.id;
-    const { q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = req.query;
+    const { q, categoryId, accountId, date, dateFrom, dateTo, month } = req.query;
+    const includeInStats = typeof req.query.includeInStats === 'undefined' ? 'true' : req.query.includeInStats;
     const result = await txService.getBalanceSummary({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
     if (result.single) {
       return res.json({ ok: true, balance: result.balance_usd });
