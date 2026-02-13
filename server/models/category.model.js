@@ -37,6 +37,12 @@ const CategorySchema = {
     type: DataTypes.STRING(64),
     field: 'color_name',
   },
+  isSystem: {
+    allowNull: false,
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    field: 'is_system',
+  },
   userId: {
     allowNull: false,
     type: DataTypes.INTEGER,

@@ -4,6 +4,7 @@ const { Op } = require('sequelize');
 const { OAuth2Client } = require('google-auth-library');
 const { sequelize, models } = require('../libs/sequelize');
 const { ConflictError, UnauthorizedError } = require('../utils/errors');
+const categoryService = require('./category_service');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -73,6 +74,8 @@ async function register({ username, email, password, name }) {
       userId: created.id,
     }, { transaction: t });
 
+    await categoryService.createDefaultCategories(created.id, t);
+
     return {
       token: generateToken(created.id),
       user: { id: created.id, username: created.username, email: created.email, name: created.name },
@@ -122,12 +125,7 @@ async function loginWithGoogle(token) {
         userId: created.id,
       }, { transaction: t });
 
-      await models.Category.bulkCreate([
-        { name: 'Comida', type: 'gasto', userId: created.id, icon: 'Pizza', color: '#F59E0B', colorName: 'Amber' },
-        { name: 'Transporte', type: 'gasto', userId: created.id, icon: 'Car', color: '#3B82F6', colorName: 'Blue' },
-        { name: 'Servicios', type: 'gasto', userId: created.id, icon: 'Zap', color: '#EF4444', colorName: 'Red' },
-        { name: 'Salario', type: 'ingreso', userId: created.id, icon: 'DollarSign', color: '#10B981', colorName: 'Emerald' },
-      ], { transaction: t });
+      await categoryService.createDefaultCategories(created.id, t);
 
       return created;
     });

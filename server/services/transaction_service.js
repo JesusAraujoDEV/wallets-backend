@@ -272,7 +272,13 @@ async function createTransaction(userId, txData) {
     const comm = Number(txData?.commission || 0);
     let commissionTx = null;
     if (comm && comm > 0) {
-      const catCommission = await findOrCreateCategoryByName(userId, 'comision', 'gasto', t, { icon: 'ReceiptText', color: '#6B7280', colorName: 'Gray' });
+      const catCommission = await findOrCreateCategoryByName(userId, 'Comision', 'gasto', t, {
+        icon: 'Percent',
+        color: '#ef4444',
+        colorName: 'Red',
+        includeInStats: true,
+        isSystem: true,
+      });
       const descCom = `Comision de: ${txData.description}`;
       const commission = await createTransactionInT(t, userId, {
         description: descCom,
@@ -328,9 +334,27 @@ async function createTransfer(userId, payload) {
     }
 
     // Categories: Transfer out (expense), Transfer in (income), Commission (expense)
-    const catOut = await findOrCreateCategoryByName(userId, 'Transferencia', 'gasto', t, { icon: 'ArrowUpRight', color: '#F59E0B', colorName: 'Amber' });
-    const catIn = await findOrCreateCategoryByName(userId, 'Transferencia', 'ingreso', t, { icon: 'ArrowDownLeft', color: '#10B981', colorName: 'Emerald' });
-    const catCommission = await findOrCreateCategoryByName(userId, 'comision', 'gasto', t, { icon: 'ReceiptText', color: '#6B7280', colorName: 'Gray' });
+    const catOut = await findOrCreateCategoryByName(userId, 'Transferencia (Salida)', 'gasto', t, {
+      icon: 'ArrowUpRight',
+      color: '#f59e0b',
+      colorName: 'Amber',
+      includeInStats: false,
+      isSystem: true,
+    });
+    const catIn = await findOrCreateCategoryByName(userId, 'Transferencia (Entrada)', 'ingreso', t, {
+      icon: 'ArrowDownLeft',
+      color: '#10b981',
+      colorName: 'Emerald',
+      includeInStats: false,
+      isSystem: true,
+    });
+    const catCommission = await findOrCreateCategoryByName(userId, 'Comision', 'gasto', t, {
+      icon: 'Percent',
+      color: '#ef4444',
+      colorName: 'Red',
+      includeInStats: true,
+      isSystem: true,
+    });
 
     // Build canonical descriptions
     const descOut = concept && concept.trim().length

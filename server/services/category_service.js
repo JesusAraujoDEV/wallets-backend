@@ -1,6 +1,66 @@
 const { models } = require('../libs/sequelize');
 const { BadRequestError } = require('../utils/errors');
 
+const DEFAULT_CATEGORIES = [
+  // --- GASTOS DEL SISTEMA ---
+  {
+    name: 'Ajuste de Balance (-)',
+    type: 'gasto',
+    includeInStats: false,
+    isSystem: true,
+    icon: 'Wrench',
+    color: '#94a3b8',
+    colorName: 'Slate',
+  },
+  {
+    name: 'Transferencia (Salida)',
+    type: 'gasto',
+    includeInStats: false,
+    isSystem: true,
+    icon: 'ArrowUpRight',
+    color: '#f59e0b',
+    colorName: 'Amber',
+  },
+  {
+    name: 'Comision',
+    type: 'gasto',
+    includeInStats: true,
+    isSystem: true,
+    icon: 'Percent',
+    color: '#ef4444',
+    colorName: 'Red',
+  },
+
+  // --- INGRESOS DEL SISTEMA ---
+  {
+    name: 'Ajuste de Balance (+)',
+    type: 'ingreso',
+    includeInStats: false,
+    isSystem: true,
+    icon: 'Wrench',
+    color: '#94a3b8',
+    colorName: 'Slate',
+  },
+  {
+    name: 'Transferencia (Entrada)',
+    type: 'ingreso',
+    includeInStats: false,
+    isSystem: true,
+    icon: 'ArrowDownLeft',
+    color: '#10b981',
+    colorName: 'Emerald',
+  },
+  {
+    name: 'Saldo Inicial',
+    type: 'ingreso',
+    includeInStats: false,
+    isSystem: true,
+    icon: 'Flag',
+    color: '#3b82f6',
+    colorName: 'Blue',
+  },
+];
+
 function normalizeType(input) {
   if (!input) return null;
   const v = String(input).toLowerCase();
@@ -11,7 +71,7 @@ function normalizeType(input) {
 
 async function list(userId) {
   return await models.Category.findAll({
-    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['user_id', 'userId']],
+    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['is_system', 'isSystem'], ['user_id', 'userId']],
     where: { userId },
     order: [['type', 'ASC'], ['name', 'ASC']],
     raw: true,
@@ -45,7 +105,7 @@ async function remove(categoryId, userId) {
 }
 async function listByIncludeInStats(userId, include) {
   return await models.Category.findAll({
-    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['user_id', 'userId']],
+    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['is_system', 'isSystem'], ['user_id', 'userId']],
     where: { userId, includeInStats: !!include },
     order: [['type', 'ASC'], ['name', 'ASC']],
     raw: true,
@@ -57,11 +117,16 @@ async function listFiltered(userId, { includeInStats, type } = {}) {
   if (typeof includeInStats === 'boolean') where.includeInStats = includeInStats;
   if (typeof type !== 'undefined' && type !== null) where.type = normalizeType(type);
   return await models.Category.findAll({
-    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['user_id', 'userId']],
+    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['is_system', 'isSystem'], ['user_id', 'userId']],
     where,
     order: [['type', 'ASC'], ['name', 'ASC']],
     raw: true,
   });
+}
+
+async function createDefaultCategories(userId, transaction = null) {
+  const rows = DEFAULT_CATEGORIES.map((cat) => ({ ...cat, userId }));
+  await models.Category.bulkCreate(rows, { transaction });
 }
 
 async function bulkSetIncludeInStats(userId, ids, value) {
@@ -74,4 +139,4 @@ async function bulkSetIncludeInStats(userId, ids, value) {
   return { rowCount: count };
 }
 
-module.exports = { list, create, update, remove, listByIncludeInStats, bulkSetIncludeInStats, listFiltered };
+module.exports = { list, create, update, remove, listByIncludeInStats, bulkSetIncludeInStats, listFiltered, createDefaultCategories };

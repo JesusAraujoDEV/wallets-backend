@@ -30,11 +30,21 @@ async function update(accountId, userId, payload) {
     const delta = newBalance - Number(account.balance);
     if (delta !== 0) {
       const adjType = delta > 0 ? 'ingreso' : 'gasto';
+      const adjName = adjType === 'ingreso' ? 'Ajuste de Balance (+)' : 'Ajuste de Balance (-)';
       let categoryId;
-      const cat = await models.Category.findOne({ where: { userId, name: 'Ajuste de Balance', type: adjType } });
+      const cat = await models.Category.findOne({ where: { userId, name: adjName, type: adjType } });
       if (cat) categoryId = cat.id;
       else {
-        const createdCat = await models.Category.create({ userId, name: 'Ajuste de Balance', type: adjType, icon: 'Scale', color: '#888888', colorName: 'Gray' });
+        const createdCat = await models.Category.create({
+          userId,
+          name: adjName,
+          type: adjType,
+          icon: 'Wrench',
+          color: '#94a3b8',
+          colorName: 'Slate',
+          includeInStats: false,
+          isSystem: true,
+        });
         categoryId = createdCat.id;
       }
       const currencyToUse = typeof payload.currency === 'string' ? payload.currency : account.currency;
