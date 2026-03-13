@@ -1,5 +1,17 @@
 const authService = require('../services/auth_service');
-const { BadRequestError } = require('../utils/errors');
+const { AppError, BadRequestError } = require('../utils/errors');
+
+function normalizeOriginCandidate(rawOrigin) {
+  if (!rawOrigin || typeof rawOrigin !== 'string') return null;
+
+  const sanitized = rawOrigin.replace(/\/$/, '');
+  try {
+    const parsed = new URL(sanitized);
+    return parsed.origin;
+  } catch (_error) {
+    return null;
+  }
+}
 
 async function login(req, res, next) {
   try {
@@ -47,7 +59,23 @@ async function loginGoogle(req, res, next) {
 async function forgotPassword(req, res, next) {
   try {
     const { email } = req.body || {};
-    await authService.forgotPassword(email);
+    const allowedOrigins = (process.env.FRONTEND_URLS || '')
+      .split(',')
+      .map((origin) => origin.trim().replace(/\/$/, ''))
+      .filter(Boolean);
+
+    if (!allowedOrigins.length) {
+      throw new AppError('Configuración inválida: FRONTEND_URLS no está definido o está vacío.', 500);
+    }
+
+    const rawOrigin = req.headers.origin || req.headers.referer;
+    const normalizedHeaderOrigin = normalizeOriginCandidate(rawOrigin);
+
+    const clientOrigin = normalizedHeaderOrigin && allowedOrigins.includes(normalizedHeaderOrigin)
+      ? normalizedHeaderOrigin
+      : allowedOrigins[0];
+
+    await authService.forgotPassword(email, clientOrigin);
     return res.json({
       success: true,
       message: 'Solicitud de recuperación procesada.',

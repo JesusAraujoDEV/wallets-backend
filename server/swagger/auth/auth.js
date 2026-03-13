@@ -183,6 +183,19 @@
  *     summary: Solicitar recuperación de contraseña
  *     tags: [Auth]
  *     security: []
+ *     parameters:
+ *       - in: header
+ *         name: Origin
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Origen del frontend solicitante. Si no coincide con FRONTEND_URLS se usa fallback seguro.
+ *       - in: header
+ *         name: Referer
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Referer alternativo cuando Origin no está disponible.
  *     requestBody:
  *       required: true
  *       content:

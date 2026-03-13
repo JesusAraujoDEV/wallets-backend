@@ -6,6 +6,7 @@ const { OAuth2Client } = require('google-auth-library');
 const { sequelize, models } = require('../libs/sequelize');
 const { BadRequestError, ConflictError, UnauthorizedError } = require('../utils/errors');
 const categoryService = require('./category_service');
+const mailerService = require('./mailer_service');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -146,7 +147,7 @@ async function loginWithGoogle(token) {
   return { token: myToken, user: userData };
 }
 
-async function forgotPassword(email) {
+async function forgotPassword(email, clientOrigin) {
   const user = await models.User.findOne({
     where: { email },
     attributes: ['id', 'email'],
@@ -166,12 +167,7 @@ async function forgotPassword(email) {
     }, { transaction: t });
   });
 
-  const resetLink = `http://localhost:3000/reset-password?token=${token}`;
-  console.log('[AUTH][FORGOT_PASSWORD_EMAIL_SIMULATION]', {
-    email,
-    resetLink,
-    expiresAt: expiresAt.toISOString(),
-  });
+  await mailerService.sendPasswordResetEmail(user.email, token, clientOrigin);
 }
 
 async function resetPassword(token, newPassword) {
