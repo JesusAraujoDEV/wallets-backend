@@ -71,6 +71,34 @@
  *           type: string
  *         user:
  *           $ref: '#/components/schemas/User'
+ *     ForgotPasswordRequest:
+ *       type: object
+ *       properties:
+ *         email:
+ *           type: string
+ *           format: email
+ *       required: [email]
+ *     ResetPasswordRequest:
+ *       type: object
+ *       properties:
+ *         token:
+ *           type: string
+ *         newPassword:
+ *           type: string
+ *           minLength: 6
+ *       required: [token, newPassword]
+ *     GenericSuccessResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *           example: true
+ *         message:
+ *           type: string
+ *           example: Operación completada correctamente.
+ *         data:
+ *           type: object
+ *           example: {}
  */
 
 /**
@@ -149,6 +177,68 @@
  *     responses:
  *       200:
  *         description: Logout exitoso
+ *
+ * /auth/forgot-password:
+ *   post:
+ *     summary: Solicitar recuperación de contraseña
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ForgotPasswordRequest'
+ *     responses:
+ *       200:
+ *         description: Solicitud procesada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/GenericSuccessResponse'
+ *       400:
+ *         description: Solicitud inválida o no procesable
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /auth/reset-password:
+ *   post:
+ *     summary: Restablecer contraseña con token
+ *     tags: [Auth]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ResetPasswordRequest'
+ *     responses:
+ *       200:
+ *         description: Contraseña restablecida
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/GenericSuccessResponse'
+ *       400:
+ *         description: Token inválido, expirado o request inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
 
 module.exports = {};

@@ -35,4 +35,18 @@ const loginSchema = Joi.object({
   password: Joi.string().min(6).max(200).required(),
 }).xor('username', 'email');
 
-module.exports = { registerSchema, googleLoginSchema, loginSchema };
+const forgotPasswordSchema = Joi.object({
+  email: Joi.string()
+    .email({ tlds: { allow: false } })
+    .pattern(/^[\w.%+\-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/)
+    .max(160)
+    .required()
+    .messages({ 'string.pattern.base': 'Email inválido. Use formato correo válido sin caracteres especiales.' }),
+});
+
+const resetPasswordSchema = Joi.object({
+  token: Joi.string().min(20).max(255).required(),
+  newPassword: Joi.string().min(6).max(200).required(),
+});
+
+module.exports = { registerSchema, googleLoginSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema };

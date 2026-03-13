@@ -1,9 +1,10 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { OAuth2Client } = require('google-auth-library');
 const { sequelize, models } = require('../libs/sequelize');
-const { ConflictError, UnauthorizedError } = require('../utils/errors');
+const { BadRequestError, ConflictError, UnauthorizedError } = require('../utils/errors');
 const categoryService = require('./category_service');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
@@ -145,4 +146,56 @@ async function loginWithGoogle(token) {
   return { token: myToken, user: userData };
 }
 
-module.exports = { login, register, loginWithGoogle };
+async function forgotPassword(email) {
+  const user = await models.User.findOne({
+    where: { email },
+    attributes: ['id', 'email'],
+  });
+
+  if (!user) {
+    throw new BadRequestError('No se pudo procesar la solicitud de recuperación.');
+  }
+
+  const token = crypto.randomBytes(20).toString('hex');
+  const expiresAt = new Date(Date.now() + (60 * 60 * 1000));
+
+  await sequelize.transaction(async (t) => {
+    await user.update({
+      resetPasswordToken: token,
+      resetPasswordExpires: expiresAt,
+    }, { transaction: t });
+  });
+
+  const resetLink = `http://localhost:3000/reset-password?token=${token}`;
+  console.log('[AUTH][FORGOT_PASSWORD_EMAIL_SIMULATION]', {
+    email,
+    resetLink,
+    expiresAt: expiresAt.toISOString(),
+  });
+}
+
+async function resetPassword(token, newPassword) {
+  const user = await models.User.findOne({
+    where: {
+      resetPasswordToken: token,
+      resetPasswordExpires: { [Op.gt]: new Date() },
+    },
+    attributes: ['id', 'passwordHash', 'resetPasswordToken', 'resetPasswordExpires'],
+  });
+
+  if (!user) {
+    throw new BadRequestError('El token de restablecimiento es inválido o expiró.');
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+
+  await sequelize.transaction(async (t) => {
+    await user.update({
+      passwordHash,
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
+    }, { transaction: t });
+  });
+}
+
+module.exports = { login, register, loginWithGoogle, forgotPassword, resetPassword };

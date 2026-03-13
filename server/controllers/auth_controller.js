@@ -44,4 +44,32 @@ async function loginGoogle(req, res, next) {
   }
 }
 
-module.exports = { login, me, logout, register, loginGoogle };
+async function forgotPassword(req, res, next) {
+  try {
+    const { email } = req.body || {};
+    await authService.forgotPassword(email);
+    return res.json({
+      success: true,
+      message: 'Solicitud de recuperación procesada.',
+      data: {},
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function resetPassword(req, res, next) {
+  try {
+    const { token, newPassword } = req.body || {};
+    await authService.resetPassword(token, newPassword);
+    return res.json({
+      success: true,
+      message: 'Contraseña restablecida correctamente.',
+      data: {},
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { login, me, logout, register, loginGoogle, forgotPassword, resetPassword };

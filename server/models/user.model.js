@@ -28,6 +28,16 @@ const UserSchema = {
     type: DataTypes.TEXT,
     field: 'password_hash', // Mantiene compatibilidad con tu DB actual
   },
+  resetPasswordToken: {
+    allowNull: true,
+    type: DataTypes.TEXT,
+    field: 'reset_password_token',
+  },
+  resetPasswordExpires: {
+    allowNull: true,
+    type: DataTypes.DATE,
+    field: 'reset_password_expires',
+  },
   createdAt: {
     allowNull: false,
     type: DataTypes.DATE,
