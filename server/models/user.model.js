@@ -23,6 +23,17 @@ const UserSchema = {
     allowNull: true,
     type: DataTypes.STRING(120),
   },
+  authProvider: {
+    allowNull: false,
+    type: DataTypes.STRING(50),
+    field: 'auth_provider',
+    defaultValue: 'local',
+  },
+  authProviderId: {
+    allowNull: true,
+    type: DataTypes.STRING(255),
+    field: 'auth_provider_id',
+  },
   passwordHash: {
     allowNull: false,
     type: DataTypes.TEXT,

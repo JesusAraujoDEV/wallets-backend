@@ -53,6 +53,12 @@
  *           format: email
  *         name:
  *           type: string
+ *         authProvider:
+ *           type: string
+ *           example: local
+ *         authProviderId:
+ *           type: string
+ *           nullable: true
  *     LoginResponse:
  *       type: object
  *       properties:
@@ -212,7 +218,7 @@
  *                 data:
  *                   $ref: '#/components/schemas/User'
  *       400:
- *         description: Datos inválidos o email/username ya en uso
+ *         description: Datos inválidos, email/username ya en uso, o intento de cambiar email en cuenta Google
  *         content:
  *           application/json:
  *             schema:

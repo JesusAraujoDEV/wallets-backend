@@ -35,6 +35,10 @@ async function updateProfile(req, res, next) {
     const userId = req.user.id;
     const { name, username, email } = req.body || {};
 
+    if (req.user.authProvider === 'google' && email !== undefined) {
+      throw new BadRequestError('No puedes cambiar el correo de una cuenta vinculada a Google.');
+    }
+
     const user = await authService.updateProfile(userId, { name, username, email });
     return res.json({
       success: true,

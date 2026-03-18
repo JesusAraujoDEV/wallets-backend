@@ -97,8 +97,9 @@ async function loginWithGoogle(token) {
   }
 
   const payload = ticket.getPayload();
-  const { email, name } = payload || {};
+  const { email, name, sub } = payload || {};
   if (!email) throw new UnauthorizedError('El token de Google no contiene email válido.');
+  if (!sub) throw new UnauthorizedError('El token de Google no contiene identificador de proveedor válido.');
 
   let user = await models.User.findOne({
     where: { email },
@@ -117,6 +118,8 @@ async function loginWithGoogle(token) {
         name: name || null,
         username,
         passwordHash,
+        authProvider: 'google',
+        authProviderId: sub,
       }, { transaction: t });
 
       await models.Account.create({
@@ -195,6 +198,12 @@ async function resetPassword(token, newPassword) {
 }
 
 async function updateProfile(userId, updateData) {
+  const currentUser = await models.User.findByPk(userId, {
+    attributes: ['id', 'authProvider'],
+  });
+
+  if (!currentUser) throw new NotFoundError('Usuario no encontrado.');
+
   const payload = {};
   const allowedFields = ['name', 'username', 'email'];
 
@@ -204,6 +213,10 @@ async function updateProfile(userId, updateData) {
 
   if (!Object.keys(payload).length) {
     throw new BadRequestError('Debe enviar al menos un campo para actualizar.');
+  }
+
+  if (currentUser.authProvider === 'google' && payload.email !== undefined) {
+    throw new BadRequestError('No puedes cambiar el correo de una cuenta vinculada a Google.');
   }
 
   if (payload.email || payload.username) {
