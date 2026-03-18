@@ -108,6 +108,39 @@
  *           type: string
  *           format: email
  *       description: Debe incluir al menos uno de los campos name, username o email.
+ *     RequestEmailChangeRequest:
+ *       type: object
+ *       properties:
+ *         currentPassword:
+ *           type: string
+ *           description: Requerido para cuentas locales. En cuentas Google puede omitirse.
+ *     VerifyOldEmailOtpRequest:
+ *       type: object
+ *       properties:
+ *         code:
+ *           type: string
+ *           example: '123456'
+ *         newEmail:
+ *           type: string
+ *           format: email
+ *       required: [code, newEmail]
+ *     ConfirmNewEmailRequest:
+ *       type: object
+ *       properties:
+ *         code:
+ *           type: string
+ *           example: '123456'
+ *         newEmail:
+ *           type: string
+ *           format: email
+ *       required: [code, newEmail]
+ *     UnlinkGoogleRequest:
+ *       type: object
+ *       properties:
+ *         newPassword:
+ *           type: string
+ *           minLength: 6
+ *       required: [newPassword]
  *     GenericSuccessResponse:
  *       type: object
  *       properties:
@@ -225,6 +258,172 @@
  *               $ref: '#/components/schemas/ErrorResponse'
  *       401:
  *         description: No autenticado o token inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /auth/email-change/request:
+ *   post:
+ *     summary: Solicitar cambio de correo (envía OTP al correo actual)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/RequestEmailChangeRequest'
+ *     responses:
+ *       200:
+ *         description: OTP enviado al correo actual
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/GenericSuccessResponse'
+ *       400:
+ *         description: Request inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: Contraseña actual inválida o no autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /auth/email-change/verify-old:
+ *   post:
+ *     summary: Verificar OTP del correo actual y enviar OTP al nuevo correo
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/VerifyOldEmailOtpRequest'
+ *     responses:
+ *       200:
+ *         description: OTP enviado al nuevo correo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/GenericSuccessResponse'
+ *       400:
+ *         description: OTP inválido/expirado o nuevo correo ya en uso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: No autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /auth/email-change/confirm:
+ *   post:
+ *     summary: Confirmar cambio de correo con OTP del nuevo correo
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ConfirmNewEmailRequest'
+ *     responses:
+ *       200:
+ *         description: Correo actualizado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
+ *       400:
+ *         description: OTP inválido/expirado o nuevo correo ya en uso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: No autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /auth/unlink-google:
+ *   post:
+ *     summary: Desvincular cuenta Google y convertirla a cuenta local
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UnlinkGoogleRequest'
+ *     responses:
+ *       200:
+ *         description: Cuenta Google desvinculada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Request inválido o cuenta no vinculada a Google
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: No autenticado
  *         content:
  *           application/json:
  *             schema:

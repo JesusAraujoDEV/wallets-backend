@@ -3,6 +3,7 @@ const { Account, AccountSchema } = require('./account.model');
 const { Category, CategorySchema } = require('./category.model');
 const { Transaction, TransactionSchema } = require('./transaction.model');
 const { TelegramSession, TelegramSessionSchema } = require('./telegram_session.model');
+const { OtpCode, OtpCodeSchema } = require('./otp_code.model');
 
 function setupModels(sequelize) {
   // 1. Inicializar
@@ -11,6 +12,7 @@ function setupModels(sequelize) {
   Category.init(CategorySchema, Category.config(sequelize));
   Transaction.init(TransactionSchema, Transaction.config(sequelize));
   TelegramSession.init(TelegramSessionSchema, TelegramSession.config(sequelize));
+  OtpCode.init(OtpCodeSchema, OtpCode.config(sequelize));
 
   // 2. Asociar
   User.associate(sequelize.models);
@@ -18,6 +20,7 @@ function setupModels(sequelize) {
   Category.associate(sequelize.models);
   Transaction.associate(sequelize.models);
   TelegramSession.associate(sequelize.models);
+  OtpCode.associate(sequelize.models);
 
   return sequelize.models;
 }

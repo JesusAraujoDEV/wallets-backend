@@ -10,6 +10,10 @@ const {
 	forgotPasswordSchema,
 	resetPasswordSchema,
 	updateProfileSchema,
+	requestEmailChangeSchema,
+	verifyOldEmailOtpSchema,
+	confirmNewEmailSchema,
+	unlinkGoogleSchema,
 } = require('../schemas/auth_schema');
 
 // Login
@@ -30,6 +34,14 @@ router.post('/reset-password', validator(resetPasswordSchema), authCtrl.resetPas
 // Me
 router.get('/me', protect, authCtrl.me);
 router.patch('/me', protect, validator(updateProfileSchema), authCtrl.updateProfile);
+
+// High-security email change flow (OTP)
+router.post('/email-change/request', protect, validator(requestEmailChangeSchema), authCtrl.requestEmailChange);
+router.post('/email-change/verify-old', protect, validator(verifyOldEmailOtpSchema), authCtrl.verifyOldEmailOtp);
+router.post('/email-change/confirm', protect, validator(confirmNewEmailSchema), authCtrl.confirmNewEmail);
+
+// Google account unlink flow
+router.post('/unlink-google', protect, validator(unlinkGoogleSchema), authCtrl.unlinkGoogle);
 
 // Logout (simbólico)
 router.post('/logout', authCtrl.logout);

@@ -70,6 +70,38 @@ const updateProfileSchema = Joi.object({
     .messages({ 'string.pattern.base': 'Email inválido. Use formato correo válido sin caracteres especiales.' }),
 }).or('name', 'username', 'email');
 
+const requestEmailChangeSchema = Joi.object({
+  currentPassword: Joi.string().min(6).max(200).optional(),
+});
+
+const verifyOldEmailOtpSchema = Joi.object({
+  code: Joi.string().pattern(/^\d{6}$/).required().messages({
+    'string.pattern.base': 'El código OTP debe tener 6 dígitos numéricos.',
+  }),
+  newEmail: Joi.string()
+    .email({ tlds: { allow: false } })
+    .pattern(/^[\w.%+\-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/)
+    .max(160)
+    .required()
+    .messages({ 'string.pattern.base': 'Email inválido. Use formato correo válido sin caracteres especiales.' }),
+});
+
+const confirmNewEmailSchema = Joi.object({
+  code: Joi.string().pattern(/^\d{6}$/).required().messages({
+    'string.pattern.base': 'El código OTP debe tener 6 dígitos numéricos.',
+  }),
+  newEmail: Joi.string()
+    .email({ tlds: { allow: false } })
+    .pattern(/^[\w.%+\-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/)
+    .max(160)
+    .required()
+    .messages({ 'string.pattern.base': 'Email inválido. Use formato correo válido sin caracteres especiales.' }),
+});
+
+const unlinkGoogleSchema = Joi.object({
+  newPassword: Joi.string().min(6).max(200).required(),
+});
+
 module.exports = {
   registerSchema,
   googleLoginSchema,
@@ -77,4 +109,8 @@ module.exports = {
   forgotPasswordSchema,
   resetPasswordSchema,
   updateProfileSchema,
+  requestEmailChangeSchema,
+  verifyOldEmailOtpSchema,
+  confirmNewEmailSchema,
+  unlinkGoogleSchema,
 };
