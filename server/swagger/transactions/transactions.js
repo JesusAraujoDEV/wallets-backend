@@ -206,29 +206,29 @@
  *                 type: integer
  *               accountId:
  *                 type: integer
-	*               commission:
-	*                 type: number
-	*                 format: float
-	*                 description: Comisión opcional; si se envía, se crea un gasto adicional con categoría "comision" en la misma cuenta
+ *               commission:
+ *                 type: number
+ *                 format: float
+ *                 description: Comisión opcional; si se envía, se crea un gasto adicional con categoría "comision" en la misma cuenta
  *             required: [description, amount, currency, date, categoryId, accountId]
  *     responses:
  *       201:
-	*         description: Transacción creada (y comisión si aplica)
-	*         content:
-	*           application/json:
-	*             schema:
-	*               type: object
-	*               properties:
-	*                 ok:
-	*                   type: boolean
-	*                 newId:
-	*                   type: integer
-	*                 tx:
-	*                   $ref: '#/components/schemas/Transaction'
-	*                 commissionTx:
-	*                   nullable: true
-	*                   allOf:
-	*                     - $ref: '#/components/schemas/Transaction'
+ *         description: Transacción creada (y comisión si aplica)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ok:
+ *                   type: boolean
+ *                 newId:
+ *                   type: integer
+ *                 tx:
+ *                   $ref: '#/components/schemas/Transaction'
+ *                 commissionTx:
+ *                   nullable: true
+ *                   allOf:
+ *                     - $ref: '#/components/schemas/Transaction'
  *       400:
  *         description: Error de validación
  *       500:

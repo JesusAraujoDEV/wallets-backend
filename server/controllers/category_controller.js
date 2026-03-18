@@ -62,7 +62,7 @@ async function remove(req, res, next) {
 
 async function bulkIncludeInStats(req, res, next) {
   try {
-    const { ids, value } = req.body; // value provided by router endpoint
+    const { ids, value } = req.body || {}; // value provided by router endpoint
     const r = await categoryService.bulkSetIncludeInStats(req.user.id, ids, !!value);
     return res.json({ ok: true, ...r });
   } catch (e) { return next(e); }

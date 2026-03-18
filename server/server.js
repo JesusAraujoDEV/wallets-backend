@@ -51,9 +51,28 @@ async function bootstrap() {
     credentials: true,
   }));
 
-  app.use(express.json());
+  app.use(express.json({ type: ['application/json', 'application/*+json'] }));
+  app.use(express.urlencoded({ extended: true }));
+  app.use((req, _res, next) => {
+    if (['POST', 'PUT', 'PATCH'].includes(req.method) && (req.body == null || typeof req.body !== 'object')) {
+      req.body = {};
+    }
+    return next();
+  });
   app.use(cookieParser());
   app.use(passport.initialize());
+
+  app.use((err, _req, res, next) => {
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+      return res.status(400).json({
+        ok: false,
+        statusCode: 400,
+        error: 'BAD_REQUEST',
+        message: 'JSON inválido en el body.',
+      });
+    }
+    return next(err);
+  });
 
   // Request origin logger (tracks Origin/Referer, IP, User-Agent)
   app.use(requestOriginLogger);
