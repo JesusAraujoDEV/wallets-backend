@@ -9,6 +9,7 @@ const {
 	loginSchema,
 	forgotPasswordSchema,
 	resetPasswordSchema,
+	updateProfileSchema,
 } = require('../schemas/auth_schema');
 
 // Login
@@ -28,6 +29,7 @@ router.post('/reset-password', validator(resetPasswordSchema), authCtrl.resetPas
 
 // Me
 router.get('/me', protect, authCtrl.me);
+router.patch('/me', protect, validator(updateProfileSchema), authCtrl.updateProfile);
 
 // Logout (simbólico)
 router.post('/logout', authCtrl.logout);

@@ -30,6 +30,22 @@ async function me(req, res) {
   return res.json({ ok: true, user: req.user });
 }
 
+async function updateProfile(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const { name, username, email } = req.body || {};
+
+    const user = await authService.updateProfile(userId, { name, username, email });
+    return res.json({
+      success: true,
+      message: 'Perfil actualizado correctamente.',
+      data: user,
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 async function logout(_req, res) {
   return res.json({ ok: true, message: 'Logout exitoso. Elimine el token en el cliente.' });
 }
@@ -100,4 +116,4 @@ async function resetPassword(req, res, next) {
   }
 }
 
-module.exports = { login, me, logout, register, loginGoogle, forgotPassword, resetPassword };
+module.exports = { login, me, updateProfile, logout, register, loginGoogle, forgotPassword, resetPassword };

@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { OAuth2Client } = require('google-auth-library');
 const { sequelize, models } = require('../libs/sequelize');
-const { BadRequestError, ConflictError, UnauthorizedError } = require('../utils/errors');
+const { BadRequestError, ConflictError, UnauthorizedError, NotFoundError } = require('../utils/errors');
 const categoryService = require('./category_service');
 const mailerService = require('./mailer_service');
 
@@ -194,4 +194,57 @@ async function resetPassword(token, newPassword) {
   });
 }
 
-module.exports = { login, register, loginWithGoogle, forgotPassword, resetPassword };
+async function updateProfile(userId, updateData) {
+  const payload = {};
+  const allowedFields = ['name', 'username', 'email'];
+
+  allowedFields.forEach((field) => {
+    if (updateData[field] !== undefined) payload[field] = updateData[field];
+  });
+
+  if (!Object.keys(payload).length) {
+    throw new BadRequestError('Debe enviar al menos un campo para actualizar.');
+  }
+
+  if (payload.email || payload.username) {
+    const uniqueChecks = [];
+    if (payload.email) uniqueChecks.push({ email: payload.email });
+    if (payload.username) uniqueChecks.push({ username: payload.username });
+
+    const existingUser = await models.User.findOne({
+      where: {
+        id: { [Op.ne]: userId },
+        [Op.or]: uniqueChecks,
+      },
+      attributes: ['id', 'username', 'email'],
+    });
+
+    if (existingUser) {
+      if (payload.email && existingUser.email === payload.email) {
+        throw new BadRequestError('El correo ya está en uso.');
+      }
+      if (payload.username && existingUser.username === payload.username) {
+        throw new BadRequestError('El usuario ya está en uso.');
+      }
+      throw new BadRequestError('El correo o usuario ya está en uso.');
+    }
+  }
+
+  const [, updatedUsers] = await models.User.update(payload, {
+    where: { id: userId },
+    fields: Object.keys(payload),
+    returning: true,
+  });
+
+  const updatedUser = updatedUsers[0];
+  if (!updatedUser) throw new NotFoundError('Usuario no encontrado.');
+
+  return {
+    id: updatedUser.id,
+    username: updatedUser.username,
+    email: updatedUser.email,
+    name: updatedUser.name,
+  };
+}
+
+module.exports = { login, register, loginWithGoogle, forgotPassword, resetPassword, updateProfile };

@@ -87,6 +87,21 @@
  *           type: string
  *           minLength: 6
  *       required: [token, newPassword]
+ *     UpdateProfileRequest:
+ *       type: object
+ *       properties:
+ *         name:
+ *           type: string
+ *           minLength: 3
+ *           maxLength: 120
+ *         username:
+ *           type: string
+ *           minLength: 3
+ *           maxLength: 25
+ *         email:
+ *           type: string
+ *           format: email
+ *       description: Debe incluir al menos uno de los campos name, username o email.
  *     GenericSuccessResponse:
  *       type: object
  *       properties:
@@ -169,6 +184,51 @@
  *                   type: boolean
  *                 user:
  *                   $ref: '#/components/schemas/User'
+ *   patch:
+ *     summary: Actualizar perfil del usuario autenticado
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UpdateProfileRequest'
+ *     responses:
+ *       200:
+ *         description: Perfil actualizado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Perfil actualizado correctamente.
+ *                 data:
+ *                   $ref: '#/components/schemas/User'
+ *       400:
+ *         description: Datos inválidos o email/username ya en uso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: No autenticado o token inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *
  * /auth/logout:
  *   post:

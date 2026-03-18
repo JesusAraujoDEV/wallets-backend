@@ -49,4 +49,32 @@ const resetPasswordSchema = Joi.object({
   newPassword: Joi.string().min(6).max(200).required(),
 });
 
-module.exports = { registerSchema, googleLoginSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema };
+const updateProfileSchema = Joi.object({
+  username: Joi.string()
+    .pattern(/^[A-Za-z0-9._-]+$/)
+    .min(3)
+    .max(25)
+    .optional()
+    .messages({ 'string.pattern.base': 'El username solo puede contener letras, números, puntos, guiones bajos y guiones.' }),
+  name: Joi.string()
+    .pattern(/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/)
+    .min(3)
+    .max(120)
+    .optional()
+    .messages({ 'string.pattern.base': 'El nombre solo puede contener letras y espacios.' }),
+  email: Joi.string()
+    .email({ tlds: { allow: false } })
+    .pattern(/^[\w.%+\-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/)
+    .max(160)
+    .optional()
+    .messages({ 'string.pattern.base': 'Email inválido. Use formato correo válido sin caracteres especiales.' }),
+}).or('name', 'username', 'email');
+
+module.exports = {
+  registerSchema,
+  googleLoginSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+  updateProfileSchema,
+};
