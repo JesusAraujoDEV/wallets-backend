@@ -56,6 +56,17 @@
  *         analytics_behavior:
  *           type: string
  *           enum: [include, exclude]
+ *
+ *     CategoryGroupAssignCategories:
+ *       type: object
+ *       properties:
+ *         categoryIds:
+ *           type: array
+ *           minItems: 1
+ *           items:
+ *             type: integer
+ *             minimum: 1
+ *       required: [categoryIds]
  */
 
 /**
@@ -156,6 +167,43 @@
  *         description: Request inválida
  *       409:
  *         description: No puedes borrar un grupo con categorías
+ *       500:
+ *         description: Error interno del servidor
+ *
+ * /category-groups/{id}/assign-categories:
+ *   patch:
+ *     summary: Asignar múltiples categorías a un grupo de categoría
+ *     tags: [Category Groups]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CategoryGroupAssignCategories'
+ *     responses:
+ *       200:
+ *         description: Categorías asignadas al grupo de categoría
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ok:
+ *                   type: boolean
+ *                 groupId:
+ *                   type: integer
+ *                 updatedCount:
+ *                   type: integer
+ *       400:
+ *         description: Request inválida
+ *       404:
+ *         description: Grupo de categoría no encontrado
  *       500:
  *         description: Error interno del servidor
  */

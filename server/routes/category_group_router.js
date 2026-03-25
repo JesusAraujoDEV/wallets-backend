@@ -7,6 +7,7 @@ const {
 	createCategoryGroupSchema,
 	updateCategoryGroupSchema,
 	idParamSchema,
+	assignCategoriesSchema,
 } = require('../schemas/category_group_schema');
 
 router.use(protect);
@@ -14,6 +15,7 @@ router.use(protect);
 router.get('/', categoryGroupCtrl.list);
 router.post('/', validator(createCategoryGroupSchema), categoryGroupCtrl.create);
 router.patch('/:id', validator(idParamSchema, 'params'), validator(updateCategoryGroupSchema), categoryGroupCtrl.update);
+router.patch('/:id/assign-categories', validator(idParamSchema, 'params'), validator(assignCategoriesSchema), categoryGroupCtrl.assignCategories);
 router.delete('/:id', validator(idParamSchema, 'params'), categoryGroupCtrl.remove);
 
 module.exports = router;

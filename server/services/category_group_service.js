@@ -1,4 +1,4 @@
-const { models } = require('../libs/sequelize');
+const { sequelize, models } = require('../libs/sequelize');
 const { BadRequestError, ConflictError } = require('../utils/errors');
 
 const ALLOWED_TYPES = new Set(['ingreso', 'gasto', 'neutral']);
@@ -101,4 +101,21 @@ async function deleteGroup(userId, groupId) {
   return { rowCount };
 }
 
-module.exports = { list, createGroup, updateGroup, deleteGroup };
+async function assignCategoriesToGroup(userId, groupId, categoryIds) {
+  return await sequelize.transaction(async (transaction) => {
+    const group = await models.CategoryGroup.findOne({
+      where: { id: groupId, userId },
+      transaction,
+    });
+    if (!group) return null;
+
+    const [updatedCount] = await models.Category.update(
+      { groupId },
+      { where: { id: categoryIds, userId }, transaction },
+    );
+
+    return { groupId, updatedCount };
+  });
+}
+
+module.exports = { list, createGroup, updateGroup, deleteGroup, assignCategoriesToGroup };

@@ -22,8 +22,17 @@ const idParamSchema = Joi.object({
   id: Joi.number().integer().positive().required(),
 });
 
+const assignCategoriesSchema = Joi.object({
+  categoryIds: Joi.array()
+    .items(Joi.number().integer().positive())
+    .min(1)
+    .unique()
+    .required(),
+});
+
 module.exports = {
   createCategoryGroupSchema,
   updateCategoryGroupSchema,
   idParamSchema,
+  assignCategoriesSchema,
 };

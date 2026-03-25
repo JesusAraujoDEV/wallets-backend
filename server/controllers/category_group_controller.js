@@ -33,4 +33,14 @@ async function remove(req, res, next) {
   } catch (e) { return next(e); }
 }
 
-module.exports = { list, create, update, remove };
+async function assignCategories(req, res, next) {
+  try {
+    const groupId = parseInt(req.params.id, 10);
+    const { categoryIds } = req.body;
+    const result = await categoryGroupService.assignCategoriesToGroup(req.user.id, groupId, categoryIds);
+    if (!result) throw new NotFoundError('Grupo de categoría no encontrado.');
+    return res.json({ ok: true, groupId: result.groupId, updatedCount: result.updatedCount });
+  } catch (e) { return next(e); }
+}
+
+module.exports = { list, create, update, remove, assignCategories };
