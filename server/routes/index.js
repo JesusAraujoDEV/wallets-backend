@@ -23,6 +23,11 @@ function buildApiRouter() {
   } catch (e) { console.error('Failed to mount /categories router:', e.message); }
 
   try {
+    const categoryGroupRouter = require('./category_group_router');
+    router.use('/category-groups', categoryGroupRouter);
+  } catch (e) { console.error('Failed to mount /category-groups router:', e.message); }
+
+  try {
     const transactionRouter = require('./transaction_router');
     router.use('/transactions', transactionRouter);
   } catch (e) { console.error('Failed to mount /transactions router:', e.message); }

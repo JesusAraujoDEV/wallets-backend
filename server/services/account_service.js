@@ -35,6 +35,10 @@ async function update(accountId, userId, payload) {
       const cat = await models.Category.findOne({ where: { userId, name: adjName, type: adjType } });
       if (cat) categoryId = cat.id;
       else {
+        const group = await models.CategoryGroup.findOne({
+          where: { userId, analyticsBehavior: 'exclude' },
+          order: [['id', 'ASC']],
+        });
         const createdCat = await models.Category.create({
           userId,
           name: adjName,
@@ -42,7 +46,7 @@ async function update(accountId, userId, payload) {
           icon: 'Wrench',
           color: '#94a3b8',
           colorName: 'Slate',
-          includeInStats: false,
+          groupId: group?.id || null,
           isSystem: true,
         });
         categoryId = createdCat.id;

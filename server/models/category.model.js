@@ -19,12 +19,6 @@ const CategorySchema = {
     allowNull: false,
     type: DataTypes.STRING(10), // 'ingreso' o 'gasto'
   },
-  includeInStats: {
-    allowNull: false,
-    type: DataTypes.BOOLEAN,
-    defaultValue: true,
-    field: 'include_in_stats',
-  },
   icon: {
     allowNull: true,
     type: DataTypes.STRING(60),

@@ -303,11 +303,12 @@ async function createTransaction(userId, txData) {
     const comm = Number(txData?.commission || 0);
     let commissionTx = null;
     if (comm && comm > 0) {
+      const includeGroupId = await findCategoryGroupIdByBehavior(userId, 'include', t);
       const catCommission = await findOrCreateCategoryByName(userId, 'Comision', 'gasto', t, {
         icon: 'Percent',
         color: '#ef4444',
         colorName: 'Red',
-        includeInStats: true,
+        groupId: includeGroupId,
         isSystem: true,
       });
       const descCom = `Comision de: ${txData.description}`;
@@ -332,6 +333,15 @@ async function findOrCreateCategoryByName(userId, name, type, t, defaults = {}) 
   if (cat) return cat;
   cat = await models.Category.create({ userId, name, type: normalizedType, ...defaults }, { transaction: t });
   return cat;
+}
+
+async function findCategoryGroupIdByBehavior(userId, analyticsBehavior, t) {
+  const group = await models.CategoryGroup.findOne({
+    where: { userId, analyticsBehavior },
+    order: [['id', 'ASC']],
+    transaction: t,
+  });
+  return group?.id || null;
 }
 
 async function createTransfer(userId, payload) {
@@ -365,25 +375,27 @@ async function createTransfer(userId, payload) {
     }
 
     // Categories: Transfer out (expense), Transfer in (income), Commission (expense)
+    const excludeGroupId = await findCategoryGroupIdByBehavior(userId, 'exclude', t);
+    const includeGroupId = await findCategoryGroupIdByBehavior(userId, 'include', t);
     const catOut = await findOrCreateCategoryByName(userId, 'Transferencia (Salida)', 'gasto', t, {
       icon: 'ArrowUpRight',
       color: '#f59e0b',
       colorName: 'Amber',
-      includeInStats: false,
+      groupId: excludeGroupId,
       isSystem: true,
     });
     const catIn = await findOrCreateCategoryByName(userId, 'Transferencia (Entrada)', 'ingreso', t, {
       icon: 'ArrowDownLeft',
       color: '#10b981',
       colorName: 'Emerald',
-      includeInStats: false,
+      groupId: excludeGroupId,
       isSystem: true,
     });
     const catCommission = await findOrCreateCategoryByName(userId, 'Comision', 'gasto', t, {
       icon: 'Percent',
       color: '#ef4444',
       colorName: 'Red',
-      includeInStats: true,
+      groupId: includeGroupId,
       isSystem: true,
     });
 

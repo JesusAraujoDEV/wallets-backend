@@ -86,15 +86,6 @@
  *         colorName:
  *           type: string
  *           nullable: true
- *
- *     CategoryIdsPayload:
- *       type: object
- *       properties:
- *         ids:
- *           type: array
- *           items:
- *             type: integer
- *       required: [ids]
  */
 
 /**
@@ -190,56 +181,6 @@
  *         description: Eliminación exitosa
  *       400:
  *         description: Parámetros inválidos
- *       500:
- *         description: Error interno del servidor
- *
- * /categories/include-in-stats/enable:
- *   post:
- *     summary: Activar bandera legacy include_in_stats para múltiples categorías
- *     tags: [Categories]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/CategoryIdsPayload'
- *     responses:
- *       200:
- *         description: Actualización realizada
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 ok: { type: boolean }
- *                 rowCount: { type: integer }
- *       400:
- *         description: Error de validación
- *       500:
- *         description: Error interno del servidor
- *
- * /categories/include-in-stats/disable:
- *   post:
- *     summary: Desactivar bandera legacy include_in_stats para múltiples categorías
- *     tags: [Categories]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/CategoryIdsPayload'
- *     responses:
- *       200:
- *         description: Actualización realizada
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 ok: { type: boolean }
- *                 rowCount: { type: integer }
- *       400:
- *         description: Error de validación
  *       500:
  *         description: Error interno del servidor
  */

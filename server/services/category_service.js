@@ -19,7 +19,6 @@ const DEFAULT_CATEGORIES = [
   {
     name: 'Ajuste de Balance (-)',
     type: 'gasto',
-    includeInStats: false,
     isSystem: true,
     icon: 'Wrench',
     color: '#94a3b8',
@@ -29,7 +28,6 @@ const DEFAULT_CATEGORIES = [
   {
     name: 'Transferencia (Salida)',
     type: 'gasto',
-    includeInStats: false,
     isSystem: true,
     icon: 'ArrowUpRight',
     color: '#f59e0b',
@@ -39,7 +37,6 @@ const DEFAULT_CATEGORIES = [
   {
     name: 'Comision',
     type: 'gasto',
-    includeInStats: true,
     isSystem: true,
     icon: 'Percent',
     color: '#ef4444',
@@ -51,7 +48,6 @@ const DEFAULT_CATEGORIES = [
   {
     name: 'Ajuste de Balance (+)',
     type: 'ingreso',
-    includeInStats: false,
     isSystem: true,
     icon: 'Wrench',
     color: '#94a3b8',
@@ -61,7 +57,6 @@ const DEFAULT_CATEGORIES = [
   {
     name: 'Transferencia (Entrada)',
     type: 'ingreso',
-    includeInStats: false,
     isSystem: true,
     icon: 'ArrowDownLeft',
     color: '#10b981',
@@ -71,7 +66,6 @@ const DEFAULT_CATEGORIES = [
   {
     name: 'Saldo Inicial',
     type: 'ingreso',
-    includeInStats: false,
     isSystem: true,
     icon: 'Flag',
     color: '#3b82f6',
@@ -90,7 +84,7 @@ function normalizeType(input) {
 
 async function list(userId) {
   const rows = await models.Category.findAll({
-    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['is_system', 'isSystem'], ['user_id', 'userId'], ['group_id', 'groupId']],
+    attributes: ['id', 'name', 'type', 'icon', 'color', ['color_name', 'colorName'], ['is_system', 'isSystem'], ['user_id', 'userId'], ['group_id', 'groupId']],
     include: [{
       model: models.CategoryGroup,
       attributes: ['id', 'name', 'type', ['analytics_behavior', 'analyticsBehavior']],
@@ -114,8 +108,7 @@ async function create(userId, { name, type, groupId, icon, color, colorName }) {
   const dbType = normalizeType(type);
   const group = await models.CategoryGroup.findOne({ where: { id: groupId, userId } });
   if (!group) throw new BadRequestError('Grupo de categoría inválido o no pertenece al usuario.');
-  const includeInStats = group.analyticsBehavior === 'include';
-  const created = await models.Category.create({ name, type: dbType, groupId, icon, color, colorName, includeInStats, userId });
+  const created = await models.Category.create({ name, type: dbType, groupId, icon, color, colorName, userId });
   return { id: created.id };
 }
 
@@ -132,7 +125,6 @@ async function update(categoryId, userId, { name, type, groupId, icon, color, co
     const group = await models.CategoryGroup.findOne({ where: { id: groupId, userId } });
     if (!group) throw new BadRequestError('Grupo de categoría inválido o no pertenece al usuario.');
     updates.groupId = groupId;
-    updates.includeInStats = group.analyticsBehavior === 'include';
   }
   if (Object.keys(updates).length === 0) return { id: categoryId };
   await cat.update(updates);
@@ -143,21 +135,13 @@ async function remove(categoryId, userId) {
   const count = await models.Category.destroy({ where: { id: categoryId, userId } });
   return { rowCount: count };
 }
-async function listByIncludeInStats(userId, include) {
-  return await models.Category.findAll({
-    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['is_system', 'isSystem'], ['user_id', 'userId']],
-    where: { userId, includeInStats: !!include },
-    order: [['type', 'ASC'], ['name', 'ASC']],
-    raw: true,
-  });
-}
 
 async function listFiltered(userId, { groupId, type } = {}) {
   const where = { userId };
   if (typeof groupId === 'number') where.groupId = groupId;
   if (typeof type !== 'undefined' && type !== null) where.type = normalizeType(type);
   const rows = await models.Category.findAll({
-    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['is_system', 'isSystem'], ['user_id', 'userId'], ['group_id', 'groupId']],
+    attributes: ['id', 'name', 'type', 'icon', 'color', ['color_name', 'colorName'], ['is_system', 'isSystem'], ['user_id', 'userId'], ['group_id', 'groupId']],
     include: [{
       model: models.CategoryGroup,
       attributes: ['id', 'name', 'type', ['analytics_behavior', 'analyticsBehavior']],
@@ -192,14 +176,4 @@ async function createDefaultCategories(userId, transaction = null) {
   await models.Category.bulkCreate(rows, { transaction });
 }
 
-async function bulkSetIncludeInStats(userId, ids, value) {
-  const uniqueIds = Array.from(new Set((ids || []).map((n) => parseInt(n, 10)).filter((n) => Number.isInteger(n) && n > 0)));
-  if (uniqueIds.length === 0) return { rowCount: 0 };
-  const [count] = await models.Category.update(
-    { includeInStats: !!value },
-    { where: { userId, id: uniqueIds } },
-  );
-  return { rowCount: count };
-}
-
-module.exports = { list, create, update, remove, listByIncludeInStats, bulkSetIncludeInStats, listFiltered, createDefaultCategories };
+module.exports = { list, create, update, remove, listFiltered, createDefaultCategories };
