@@ -46,7 +46,12 @@ async function getNetCashFlow({ userId, fromDate, toDate, timeUnit = 'month', ac
       [literal("SUM(CASE WHEN \"Category\".\"type\" = 'gasto' THEN \"Transaction\".\"amount_usd\" ELSE 0 END)"), 'expense_usd'],
     ],
     where: whereTx,
-    include: [{ model: models.Category, attributes: [], where: { includeInStats: true }, required: true }],
+    include: [{
+      model: models.Category,
+      attributes: [],
+      required: true,
+      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+    }],
     group: [periodFn],
     order: [[periodFn, 'ASC']],
     raw: true,
@@ -96,7 +101,13 @@ async function getSpendingHeatmap({ userId, fromDate, toDate, accountId }) {
       [fn('SUM', col('Transaction.amount_usd')), 'sum_usd'],
     ],
     where: whereTx,
-    include: [{ model: models.Category, attributes: [], where: { type: 'gasto', includeInStats: true }, required: true }],
+    include: [{
+      model: models.Category,
+      attributes: [],
+      where: { type: 'gasto' },
+      required: true,
+      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+    }],
   group: [col('Category.name'), fn('date_part', 'dow', col('Transaction.date'))],
     order: [[col('Category.name'), 'ASC']],
     raw: true,
@@ -159,7 +170,13 @@ async function getExpenseVolatility({ userId, fromDate, toDate, topN = 5 }) {
   const topRows = await models.Transaction.findAll({
     attributes: [[col('Category.name'), 'category'], [fn('SUM', col('Transaction.amount_usd')), 'sum_usd']],
     where: { userId, date: { [Op.gte]: from, [Op.lte]: to } },
-    include: [{ model: models.Category, attributes: [], where: { type: 'gasto', includeInStats: true }, required: true }],
+    include: [{
+      model: models.Category,
+      attributes: [],
+      where: { type: 'gasto' },
+      required: true,
+      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+    }],
     group: [col('Category.name')],
     order: [[fn('SUM', col('Transaction.amount_usd')), 'DESC']],
     limit: Number(topN) || 5,
@@ -172,7 +189,13 @@ async function getExpenseVolatility({ userId, fromDate, toDate, topN = 5 }) {
   const txs = await models.Transaction.findAll({
     attributes: [[col('Category.name'), 'category'], 'amountUsd'],
     where: { userId, date: { [Op.gte]: from, [Op.lte]: to } },
-    include: [{ model: models.Category, attributes: [], where: { type: 'gasto', includeInStats: true, name: { [Op.in]: catNames } }, required: true }],
+    include: [{
+      model: models.Category,
+      attributes: [],
+      where: { type: 'gasto', name: { [Op.in]: catNames } },
+      required: true,
+      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+    }],
     raw: true,
   });
 
@@ -224,13 +247,25 @@ async function getComparativeMoM({ userId, date }) {
     models.Transaction.findAll({
       attributes: [[col('Category.name'), 'category'], [fn('SUM', col('Transaction.amount_usd')), 'sum_usd']],
       where: curWhere,
-      include: [{ model: models.Category, attributes: [], where: { type: 'gasto', includeInStats: true }, required: true }],
+      include: [{
+        model: models.Category,
+        attributes: [],
+        where: { type: 'gasto' },
+        required: true,
+        include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+      }],
       group: [col('Category.name')], raw: true,
     }),
     models.Transaction.findAll({
       attributes: [[col('Category.name'), 'category'], [fn('SUM', col('Transaction.amount_usd')), 'sum_usd']],
       where: prevWhere,
-      include: [{ model: models.Category, attributes: [], where: { type: 'gasto', includeInStats: true }, required: true }],
+      include: [{
+        model: models.Category,
+        attributes: [],
+        where: { type: 'gasto' },
+        required: true,
+        include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+      }],
       group: [col('Category.name')], raw: true,
     })
   ]);
@@ -286,7 +321,13 @@ async function getMonthlyForecast({ userId, accountId, date, budgetTotal }) {
   const row = await models.Transaction.findOne({
     attributes: [[fn('COALESCE', fn('SUM', col('Transaction.amount_usd')), 0), 'sum_usd']],
     where: whereTx,
-    include: [{ model: models.Category, attributes: [], where: { type: 'gasto', includeInStats: true }, required: true }],
+    include: [{
+      model: models.Category,
+      attributes: [],
+      where: { type: 'gasto' },
+      required: true,
+      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+    }],
     raw: true,
   });
   const current_spending_mtd = Number(row?.sum_usd || 0);
@@ -323,7 +364,13 @@ async function getIncomeHeatmap({ userId, fromDate, toDate, accountId }) {
       [fn('SUM', col('Transaction.amount_usd')), 'sum_usd'],
     ],
     where: whereTx,
-    include: [{ model: models.Category, attributes: [], where: { type: 'ingreso', includeInStats: true }, required: true }],
+    include: [{
+      model: models.Category,
+      attributes: [],
+      where: { type: 'ingreso' },
+      required: true,
+      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+    }],
     group: [col('Category.name'), fn('date_part', 'dow', col('Transaction.date'))],
     order: [[col('Category.name'), 'ASC']],
     raw: true,
@@ -359,7 +406,13 @@ async function getIncomeVolatility({ userId, fromDate, toDate, topN = 5 }) {
   const topRows = await models.Transaction.findAll({
     attributes: [[col('Category.name'), 'category'], [fn('SUM', col('Transaction.amount_usd')), 'sum_usd']],
     where: { userId, date: { [Op.gte]: from, [Op.lte]: to } },
-    include: [{ model: models.Category, attributes: [], where: { type: 'ingreso', includeInStats: true }, required: true }],
+    include: [{
+      model: models.Category,
+      attributes: [],
+      where: { type: 'ingreso' },
+      required: true,
+      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+    }],
     group: [col('Category.name')],
     order: [[fn('SUM', col('Transaction.amount_usd')), 'DESC']],
     limit: Number(topN) || 5,
@@ -371,7 +424,13 @@ async function getIncomeVolatility({ userId, fromDate, toDate, topN = 5 }) {
   const txs = await models.Transaction.findAll({
     attributes: [[col('Category.name'), 'category'], 'amountUsd'],
     where: { userId, date: { [Op.gte]: from, [Op.lte]: to } },
-    include: [{ model: models.Category, attributes: [], where: { type: 'ingreso', includeInStats: true, name: { [Op.in]: catNames } }, required: true }],
+    include: [{
+      model: models.Category,
+      attributes: [],
+      where: { type: 'ingreso', name: { [Op.in]: catNames } },
+      required: true,
+      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+    }],
     raw: true,
   });
 
@@ -413,13 +472,25 @@ async function getComparativeMoMIncome({ userId, date }) {
     models.Transaction.findAll({
       attributes: [[col('Category.name'), 'category'], [fn('SUM', col('Transaction.amount_usd')), 'sum_usd']],
       where: curWhere,
-      include: [{ model: models.Category, attributes: [], where: { type: 'ingreso', includeInStats: true }, required: true }],
+      include: [{
+        model: models.Category,
+        attributes: [],
+        where: { type: 'ingreso' },
+        required: true,
+        include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+      }],
       group: [col('Category.name')], raw: true,
     }),
     models.Transaction.findAll({
       attributes: [[col('Category.name'), 'category'], [fn('SUM', col('Transaction.amount_usd')), 'sum_usd']],
       where: prevWhere,
-      include: [{ model: models.Category, attributes: [], where: { type: 'ingreso', includeInStats: true }, required: true }],
+      include: [{
+        model: models.Category,
+        attributes: [],
+        where: { type: 'ingreso' },
+        required: true,
+        include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+      }],
       group: [col('Category.name')], raw: true,
     })
   ]);

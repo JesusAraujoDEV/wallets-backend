@@ -42,7 +42,7 @@ function monthToRange(monthStr) {
 }
 
 async function getAllTransactions(filters) {
-  const { userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = filters;
+  const { userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior } = filters;
   const whereTx = { userId };
   const accountIds = parseIdFilter(accountId);
   const categoryIds = parseIdFilter(categoryId);
@@ -63,11 +63,7 @@ async function getAllTransactions(filters) {
   const include = [];
   const catWhere = {};
   if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
-  if (typeof includeInStats !== 'undefined' && includeInStats !== null) {
-    const v = String(includeInStats).toLowerCase();
-    const bool = v === '1' || v === 'true' || v === 'yes' || includeInStats === true;
-    catWhere.includeInStats = bool;
-  }
+  const behavior = parseAnalyticsBehavior(analyticsBehavior);
   if (q) {
     whereTx[Op.or] = [
       { description: { [Op.iLike]: `%${q}%` } },
@@ -79,7 +75,13 @@ async function getAllTransactions(filters) {
     model: models.Category,
     attributes: ['type', 'name'],
     where: Object.keys(catWhere).length ? catWhere : undefined,
-    required: Object.keys(catWhere).length > 0,
+    required: Object.keys(catWhere).length > 0 || behavior !== null,
+    include: [{
+      model: models.CategoryGroup,
+      attributes: [],
+      where: behavior ? { analyticsBehavior: behavior } : undefined,
+      required: behavior !== null,
+    }],
   });
 
   const rows = await models.Transaction.findAll({
@@ -106,7 +108,7 @@ async function getAllTransactions(filters) {
 }
 
 async function getGroupedTransactions(filters) {
-  const { userId, pageSize = 20, cursorDate, q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = filters;
+  const { userId, pageSize = 20, cursorDate, q, type, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior } = filters;
   const whereTx = { userId };
   const accountIds = parseIdFilter(accountId);
   const categoryIds = parseIdFilter(categoryId);
@@ -134,21 +136,39 @@ async function getGroupedTransactions(filters) {
   const include = [];
   const catWhere = {};
   if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
-  if (typeof includeInStats !== 'undefined' && includeInStats !== null) {
-    const v = String(includeInStats).toLowerCase();
-    const bool = v === '1' || v === 'true' || v === 'yes' || includeInStats === true;
-    catWhere.includeInStats = bool;
-  }
+  const behavior = parseAnalyticsBehavior(analyticsBehavior);
   if (q) {
     whereTx[Op.or] = [
       { description: { [Op.iLike]: `%${q}%` } },
       sqWhere(col('Category.name'), { [Op.iLike]: `%${q}%` })
     ];
   }
-  include.push({ model: models.Category, attributes: ['type', 'name'], where: Object.keys(catWhere).length ? catWhere : undefined, required: Object.keys(catWhere).length > 0 });
+  include.push({
+    model: models.Category,
+    attributes: ['type', 'name'],
+    where: Object.keys(catWhere).length ? catWhere : undefined,
+    required: Object.keys(catWhere).length > 0 || behavior !== null,
+    include: [{
+      model: models.CategoryGroup,
+      attributes: [],
+      where: behavior ? { analyticsBehavior: behavior } : undefined,
+      required: behavior !== null,
+    }],
+  });
 
   // For day counts, avoid selecting Category columns to prevent GROUP BY issues
-  const includeDay = [{ model: models.Category, attributes: [], where: Object.keys(catWhere).length ? catWhere : undefined, required: Object.keys(catWhere).length > 0 }];
+  const includeDay = [{
+    model: models.Category,
+    attributes: [],
+    where: Object.keys(catWhere).length ? catWhere : undefined,
+    required: Object.keys(catWhere).length > 0 || behavior !== null,
+    include: [{
+      model: models.CategoryGroup,
+      attributes: [],
+      where: behavior ? { analyticsBehavior: behavior } : undefined,
+      required: behavior !== null,
+    }],
+  }];
   const dayRows = await models.Transaction.findAll({
     attributes: [[fn('DATE', col('Transaction.date')), 'day'], [fn('COUNT', col('Transaction.id')), 'tx_count']],
     where: whereTx,
@@ -177,7 +197,18 @@ async function getGroupedTransactions(filters) {
   const items = await models.Transaction.findAll({
     attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], 'date', ['category_id', 'categoryId'], ['account_id', 'accountId']],
     where: { ...whereTx, ...(days.length ? { date: { [Op.in]: days } } : {}) },
-    include: [{ model: models.Category, attributes: ['type'], where: Object.keys(catWhere).length ? catWhere : undefined, required: Object.keys(catWhere).length > 0 }],
+    include: [{
+      model: models.Category,
+      attributes: ['type'],
+      where: Object.keys(catWhere).length ? catWhere : undefined,
+      required: Object.keys(catWhere).length > 0 || behavior !== null,
+      include: [{
+        model: models.CategoryGroup,
+        attributes: [],
+        where: behavior ? { analyticsBehavior: behavior } : undefined,
+        required: behavior !== null,
+      }],
+    }],
     order: [['date', 'DESC'], ['id', 'DESC']],
     raw: true,
     nest: true,
@@ -553,11 +584,11 @@ async function deleteTransaction(txId, userId) {
 }
 
 // Summary helpers
-function parseBoolish(val) {
-  if (val === undefined || val === null) return null;
+function parseAnalyticsBehavior(val) {
+  if (val === undefined || val === null || val === '') return null;
   const v = String(val).toLowerCase();
-  if (v === '1' || v === 'true' || v === 'yes') return true;
-  if (v === '0' || v === 'false' || v === 'no') return false;
+  if (v === 'include') return 'include';
+  if (v === 'exclude') return 'exclude';
   return null;
 }
 
@@ -587,23 +618,33 @@ function buildTxFilterWhere({ userId, q, categoryId, accountId, date, dateFrom, 
   return whereTx;
 }
 
-async function getTransactionsSummary({ userId, type, q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats }) {
+async function getTransactionsSummary({ userId, type, q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior }) {
   const whereTx = buildTxFilterWhere({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month });
   const catWhere = {};
   if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
-  const bool = parseBoolish(includeInStats);
-  if (bool !== null) catWhere.includeInStats = bool;
+  const behavior = parseAnalyticsBehavior(analyticsBehavior);
 
   const sumRow = await models.Transaction.findOne({
     attributes: [[fn('COALESCE', fn('SUM', col('Transaction.amount_usd')), 0), 'totalUsd']],
     where: whereTx,
-    include: [{ model: models.Category, attributes: [], where: Object.keys(catWhere).length ? catWhere : undefined, required: Object.keys(catWhere).length > 0 }],
+    include: [{
+      model: models.Category,
+      attributes: [],
+      where: Object.keys(catWhere).length ? catWhere : undefined,
+      required: Object.keys(catWhere).length > 0 || behavior !== null,
+      include: [{
+        model: models.CategoryGroup,
+        attributes: [],
+        where: behavior ? { analyticsBehavior: behavior } : undefined,
+        required: behavior !== null,
+      }],
+    }],
     raw: true,
   });
   const total = Number(sumRow?.totalUsd || 0);
 
   // Reuse existing list function ensuring the type filter is applied
-  const items = await getAllTransactions({ userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
+  const items = await getAllTransactions({ userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior });
 
   if (type === 'income') {
     return { income_total: total, transactions_income: items };
@@ -612,7 +653,7 @@ async function getTransactionsSummary({ userId, type, q, categoryId, accountId, 
   }
 }
 
-async function getBalanceSummary({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats }) {
+async function getBalanceSummary({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior }) {
   const ids = parseIdFilter(accountId);
   const whereAcc = { userId };
   if (ids && ids.length > 0) whereAcc.id = ids.length > 1 ? { [Op.in]: ids } : ids[0];
@@ -641,8 +682,8 @@ async function getBalanceSummary({ userId, q, categoryId, accountId, date, dateF
   }
 
   // Income and expense totals in USD over the requested range
-  const income = await getTransactionsSummary({ userId, type: 'income', q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
-  const expense = await getTransactionsSummary({ userId, type: 'expense', q, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
+  const income = await getTransactionsSummary({ userId, type: 'income', q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior });
+  const expense = await getTransactionsSummary({ userId, type: 'expense', q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior });
   const income_total_usd = Number(income.income_total || 0);
   const expense_total_usd = Number(expense.expense_total || 0);
   const net_total_usd = income_total_usd - expense_total_usd;
@@ -690,14 +731,13 @@ function monthsBetweenList(fromMonth, toMonth) {
   return out;
 }
 
-async function getMonthlySummary({ userId, type, fromMonth, toMonth, includeInStats, categoryId, accountId }) {
+async function getMonthlySummary({ userId, type, fromMonth, toMonth, analyticsBehavior, categoryId, accountId }) {
   const range = monthRangeInclusive(fromMonth, toMonth);
   if (!range) throw new Error('Parámetros from_month/to_month inválidos. Formato esperado YYYY-MM y from <= to.');
 
   const catWhere = {};
   if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
-  const bool = parseBoolish(includeInStats);
-  if (bool !== null) catWhere.includeInStats = bool;
+  const behavior = parseAnalyticsBehavior(analyticsBehavior);
 
   // Build tx where with optional filters
   const whereTx = { userId, date: { [Op.gte]: range.from, [Op.lte]: range.to } };
@@ -712,7 +752,18 @@ async function getMonthlySummary({ userId, type, fromMonth, toMonth, includeInSt
       [fn('COALESCE', fn('SUM', col('Transaction.amount_usd')), 0), 'sum_usd'],
     ],
     where: whereTx,
-    include: [{ model: models.Category, attributes: [], where: Object.keys(catWhere).length ? catWhere : undefined, required: true }],
+    include: [{
+      model: models.Category,
+      attributes: [],
+      where: Object.keys(catWhere).length ? catWhere : undefined,
+      required: true,
+      include: [{
+        model: models.CategoryGroup,
+        attributes: [],
+        where: behavior ? { analyticsBehavior: behavior } : undefined,
+        required: behavior !== null,
+      }],
+    }],
     group: [fn('date_trunc', 'month', col('Transaction.date'))],
     order: [[fn('date_trunc', 'month', col('Transaction.date')), 'ASC']],
     raw: true,

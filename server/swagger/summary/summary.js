@@ -98,10 +98,10 @@
  *           pattern: "^\\d{4}-\\d{2}$"
  *         description: Mes final (YYYY-MM), inclusive. Si no se envía, se usa from_month
  *       - in: query
- *         name: includeInStats
+ *         name: analyticsBehavior
  *         schema:
  *           type: string
- *           enum: ['0','1','true','false']
+ *           enum: [include, exclude]
  *       - in: query
  *         name: categoryId
  *         schema:
@@ -187,10 +187,10 @@
  *           pattern: "^\\d{4}-\\d{2}$"
  *         description: Mes final (YYYY-MM), inclusive. Si no se envía, se usa from_month
  *       - in: query
- *         name: includeInStats
+ *         name: analyticsBehavior
  *         schema:
  *           type: string
- *           enum: ['0','1','true','false']
+ *           enum: [include, exclude]
  *     responses:
  *       200:
  *         description: Total y mapa mensual de gastos o solo el total si no se envían meses

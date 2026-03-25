@@ -5,7 +5,11 @@ const { BadRequestError, NotFoundError } = require('../utils/errors');
 async function list(req, res, next) {
   try {
     const userId = req.user.id;
-    const { grouped, pageSize, cursorDate, q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = req.query;
+    const { grouped, pageSize, cursorDate, q, type, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior } = req.query;
+    if (typeof analyticsBehavior !== 'undefined') {
+      const v = String(analyticsBehavior).toLowerCase();
+      if (v !== 'include' && v !== 'exclude') throw new BadRequestError('analyticsBehavior must be include|exclude');
+    }
     if (grouped === '1') {
       const result = await txService.getGroupedTransactions({
         userId,
@@ -19,11 +23,11 @@ async function list(req, res, next) {
         dateFrom,
         dateTo,
         month,
-        includeInStats,
+        analyticsBehavior,
       });
       return res.json(result);
     }
-    const rows = await txService.getAllTransactions({ userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats });
+    const rows = await txService.getAllTransactions({ userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior });
     return res.json(rows);
   } catch (e) { return next(e); }
 }
@@ -119,8 +123,12 @@ async function exportAll(req, res, next) {
     const format = String((payload && payload.format) || 'pdf').toLowerCase();
     if (format !== 'pdf' && format !== 'xlsx') throw new BadRequestError('Formato inválido. Use pdf o xlsx');
 
-    const { q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats } = payload;
-    const filters = { q, type, categoryId, accountId, date, dateFrom, dateTo, month, includeInStats };
+    const { q, type, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior } = payload;
+    if (typeof analyticsBehavior !== 'undefined') {
+      const v = String(analyticsBehavior).toLowerCase();
+      if (v !== 'include' && v !== 'exclude') throw new BadRequestError('analyticsBehavior must be include|exclude');
+    }
+    const filters = { q, type, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior };
 
     const { contentType, filename, stream } = await buildTransactionsExportFromDb({
       userId,

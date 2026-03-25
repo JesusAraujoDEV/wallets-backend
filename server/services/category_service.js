@@ -89,21 +89,37 @@ function normalizeType(input) {
 }
 
 async function list(userId) {
-  return await models.Category.findAll({
-    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['is_system', 'isSystem'], ['user_id', 'userId']],
+  const rows = await models.Category.findAll({
+    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['is_system', 'isSystem'], ['user_id', 'userId'], ['group_id', 'groupId']],
+    include: [{
+      model: models.CategoryGroup,
+      attributes: ['id', 'name', 'type', ['analytics_behavior', 'analyticsBehavior']],
+      required: false,
+    }],
     where: { userId },
     order: [['type', 'ASC'], ['name', 'ASC']],
+    nest: true,
     raw: true,
+  });
+  return rows.map((row) => {
+    const { CategoryGroup, ...rest } = row;
+    return {
+      ...rest,
+      group: CategoryGroup || null,
+    };
   });
 }
 
-async function create(userId, { name, type, icon, color, colorName, includeInStats = true }) {
+async function create(userId, { name, type, groupId, icon, color, colorName }) {
   const dbType = normalizeType(type);
-  const created = await models.Category.create({ name, type: dbType, icon, color, colorName, includeInStats, userId });
+  const group = await models.CategoryGroup.findOne({ where: { id: groupId, userId } });
+  if (!group) throw new BadRequestError('Grupo de categoría inválido o no pertenece al usuario.');
+  const includeInStats = group.analyticsBehavior === 'include';
+  const created = await models.Category.create({ name, type: dbType, groupId, icon, color, colorName, includeInStats, userId });
   return { id: created.id };
 }
 
-async function update(categoryId, userId, { name, type, icon, color, colorName, includeInStats }) {
+async function update(categoryId, userId, { name, type, groupId, icon, color, colorName }) {
   const cat = await models.Category.findOne({ where: { id: categoryId, userId } });
   if (!cat) return null;
   const updates = {};
@@ -112,7 +128,12 @@ async function update(categoryId, userId, { name, type, icon, color, colorName, 
   if (typeof color === 'string') updates.color = color;
   if (typeof colorName === 'string') updates.colorName = colorName;
   if (typeof type !== 'undefined' && type !== null) updates.type = normalizeType(type);
-  if (typeof includeInStats === 'boolean') updates.includeInStats = includeInStats;
+  if (typeof groupId !== 'undefined') {
+    const group = await models.CategoryGroup.findOne({ where: { id: groupId, userId } });
+    if (!group) throw new BadRequestError('Grupo de categoría inválido o no pertenece al usuario.');
+    updates.groupId = groupId;
+    updates.includeInStats = group.analyticsBehavior === 'include';
+  }
   if (Object.keys(updates).length === 0) return { id: categoryId };
   await cat.update(updates);
   return { id: categoryId };
@@ -131,15 +152,28 @@ async function listByIncludeInStats(userId, include) {
   });
 }
 
-async function listFiltered(userId, { includeInStats, type } = {}) {
+async function listFiltered(userId, { groupId, type } = {}) {
   const where = { userId };
-  if (typeof includeInStats === 'boolean') where.includeInStats = includeInStats;
+  if (typeof groupId === 'number') where.groupId = groupId;
   if (typeof type !== 'undefined' && type !== null) where.type = normalizeType(type);
-  return await models.Category.findAll({
-    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['is_system', 'isSystem'], ['user_id', 'userId']],
+  const rows = await models.Category.findAll({
+    attributes: ['id', 'name', 'type', ['include_in_stats', 'includeInStats'], 'icon', 'color', ['color_name', 'colorName'], ['is_system', 'isSystem'], ['user_id', 'userId'], ['group_id', 'groupId']],
+    include: [{
+      model: models.CategoryGroup,
+      attributes: ['id', 'name', 'type', ['analytics_behavior', 'analyticsBehavior']],
+      required: false,
+    }],
     where,
     order: [['type', 'ASC'], ['name', 'ASC']],
+    nest: true,
     raw: true,
+  });
+  return rows.map((row) => {
+    const { CategoryGroup, ...rest } = row;
+    return {
+      ...rest,
+      group: CategoryGroup || null,
+    };
   });
 }
 

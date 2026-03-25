@@ -3,16 +3,12 @@ const { BadRequestError, NotFoundError } = require('../utils/errors');
 
 async function list(req, res, next) {
   try {
-    const { includeInStats, type } = req.query;
+    const { groupId, type } = req.query;
 
-    // parse optional filters; keep controller light
-    let includeInStatsBool;
-    if (typeof includeInStats !== 'undefined') {
-      const v = String(includeInStats).toLowerCase();
-      const truthy = v === '1' || v === 'true' || v === 'yes';
-      const falsy = v === '0' || v === 'false' || v === 'no';
-      if (!truthy && !falsy) throw new BadRequestError('includeInStats must be true/false or 1/0');
-      includeInStatsBool = truthy;
+    let groupIdFilter;
+    if (typeof groupId !== 'undefined') {
+      groupIdFilter = parseInt(groupId, 10);
+      if (!groupIdFilter || Number.isNaN(groupIdFilter)) throw new BadRequestError('groupId must be a positive integer');
     }
 
     let typeFilter;
@@ -23,8 +19,8 @@ async function list(req, res, next) {
       typeFilter = t;
     }
 
-    if (typeof includeInStatsBool === 'boolean' || typeof typeFilter === 'string') {
-      const items = await categoryService.listFiltered(req.user.id, { includeInStats: includeInStatsBool, type: typeFilter });
+    if (typeof groupIdFilter === 'number' || typeof typeFilter === 'string') {
+      const items = await categoryService.listFiltered(req.user.id, { groupId: groupIdFilter, type: typeFilter });
       return res.json(items);
     }
 

@@ -21,6 +21,6 @@ router.post('/include-in-stats/enable', validator(bulkIncludeInStatsSchema), (re
 // Bulk set include_in_stats = false
 router.post('/include-in-stats/disable', validator(bulkIncludeInStatsSchema), (req, _res, next) => { req.body.value = false; next(); }, categoryCtrl.bulkIncludeInStats);
 
-// Note: filtering by includeInStats is handled via GET / with query param includeInStats=true|false
+// Note: filtering is handled via GET / with query params groupId and type
 
 module.exports = router;

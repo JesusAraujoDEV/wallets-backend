@@ -2,6 +2,21 @@
  * @swagger
  * components:
  *   schemas:
+ *     CategoryGroupRef:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: integer
+ *         name:
+ *           type: string
+ *         type:
+ *           type: string
+ *           enum: [ingreso, gasto, neutral]
+ *         analyticsBehavior:
+ *           type: string
+ *           enum: [include, exclude]
+ *       required: [id, name, type, analyticsBehavior]
+ *
  *     Category:
  *       type: object
  *       properties:
@@ -12,12 +27,25 @@
  *         type:
  *           type: string
  *           enum: [ingreso, gasto]
- *         includeInStats:
+ *         groupId:
+ *           type: integer
+ *         group:
+ *           $ref: '#/components/schemas/CategoryGroupRef'
+ *         icon:
+ *           type: string
+ *           nullable: true
+ *         color:
+ *           type: string
+ *           nullable: true
+ *         colorName:
+ *           type: string
+ *           nullable: true
+ *         isSystem:
  *           type: boolean
- *           description: Si la categoría participa en estadísticas
  *         userId:
  *           type: integer
- *       required: [id, name, type]
+ *       required: [id, name, type, groupId, userId]
+ *
  *     CategoryCreate:
  *       type: object
  *       properties:
@@ -26,10 +54,19 @@
  *         type:
  *           type: string
  *           enum: [income, expense, ingreso, gasto]
- *         includeInStats:
- *           type: boolean
- *           default: true
- *       required: [name, type]
+ *         groupId:
+ *           type: integer
+ *         icon:
+ *           type: string
+ *           nullable: true
+ *         color:
+ *           type: string
+ *           nullable: true
+ *         colorName:
+ *           type: string
+ *           nullable: true
+ *       required: [name, type, groupId]
+ *
  *     CategoryUpdate:
  *       type: object
  *       properties:
@@ -38,8 +75,17 @@
  *         type:
  *           type: string
  *           enum: [income, expense, ingreso, gasto]
- *         includeInStats:
- *           type: boolean
+ *         groupId:
+ *           type: integer
+ *         icon:
+ *           type: string
+ *           nullable: true
+ *         color:
+ *           type: string
+ *           nullable: true
+ *         colorName:
+ *           type: string
+ *           nullable: true
  *
  *     CategoryIdsPayload:
  *       type: object
@@ -59,11 +105,10 @@
  *     tags: [Categories]
  *     parameters:
  *       - in: query
- *         name: includeInStats
+ *         name: groupId
  *         schema:
- *           type: string
- *           enum: ['true','false','1','0']
- *         description: Filtrar por includeInStats (true/false)
+ *           type: integer
+ *         description: Filtrar por grupo de categoría
  *       - in: query
  *         name: type
  *         schema:
@@ -79,6 +124,11 @@
  *               type: array
  *               items:
  *                 $ref: '#/components/schemas/Category'
+ *       400:
+ *         description: Parámetros inválidos
+ *       500:
+ *         description: Error interno del servidor
+ *
  *   post:
  *     summary: Crear una nueva categoría
  *     tags: [Categories]
@@ -94,7 +144,15 @@
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Category'
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *       400:
+ *         description: Error de validación
+ *       500:
+ *         description: Error interno del servidor
+ *
  *   patch:
  *     summary: Actualizar categoría (parcial)
  *     tags: [Categories]
@@ -113,6 +171,11 @@
  *     responses:
  *       200:
  *         description: Categoría actualizada
+ *       400:
+ *         description: Parámetros inválidos
+ *       500:
+ *         description: Error interno del servidor
+ *
  *   delete:
  *     summary: Eliminar categoría
  *     tags: [Categories]
@@ -125,10 +188,14 @@
  *     responses:
  *       200:
  *         description: Eliminación exitosa
+ *       400:
+ *         description: Parámetros inválidos
+ *       500:
+ *         description: Error interno del servidor
  *
  * /categories/include-in-stats/enable:
  *   post:
- *     summary: Activar include_in_stats para múltiples categorías
+ *     summary: Activar bandera legacy include_in_stats para múltiples categorías
  *     tags: [Categories]
  *     requestBody:
  *       required: true
@@ -146,10 +213,14 @@
  *               properties:
  *                 ok: { type: boolean }
  *                 rowCount: { type: integer }
+ *       400:
+ *         description: Error de validación
+ *       500:
+ *         description: Error interno del servidor
  *
  * /categories/include-in-stats/disable:
  *   post:
- *     summary: Desactivar include_in_stats para múltiples categorías
+ *     summary: Desactivar bandera legacy include_in_stats para múltiples categorías
  *     tags: [Categories]
  *     requestBody:
  *       required: true
@@ -167,34 +238,10 @@
  *               properties:
  *                 ok: { type: boolean }
  *                 rowCount: { type: integer }
-
- * /categories/include-in-stats/enabled:
- *   get:
- *     summary: Listar categorías con include_in_stats = true
- *     tags: [Categories]
- *     responses:
- *       200:
- *         description: Lista de categorías incluidas en estadísticas
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Category'
-
- * /categories/include-in-stats/disabled:
- *   get:
- *     summary: Listar categorías con include_in_stats = false
- *     tags: [Categories]
- *     responses:
- *       200:
- *         description: Lista de categorías excluidas de estadísticas
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Category'
+ *       400:
+ *         description: Error de validación
+ *       500:
+ *         description: Error interno del servidor
  */
 
 module.exports = {};
