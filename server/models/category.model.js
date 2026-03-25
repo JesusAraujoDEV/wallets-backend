@@ -1,5 +1,6 @@
 const { Model, DataTypes, Sequelize } = require('sequelize');
 const { USER_TABLE } = require('./user.model');
+const { CATEGORY_GROUP_TABLE } = require('./category_group.model');
 
 const CATEGORY_TABLE = 'categories';
 
@@ -43,6 +44,17 @@ const CategorySchema = {
     defaultValue: false,
     field: 'is_system',
   },
+  groupId: {
+    allowNull: true,
+    type: DataTypes.INTEGER,
+    field: 'group_id',
+    references: {
+      model: CATEGORY_GROUP_TABLE,
+      key: 'id',
+    },
+    onUpdate: 'CASCADE',
+    onDelete: 'SET NULL',
+  },
   userId: {
     allowNull: false,
     type: DataTypes.INTEGER,
@@ -71,6 +83,7 @@ const CategorySchema = {
 class Category extends Model {
   static associate(models) {
     this.belongsTo(models.User, { foreignKey: 'user_id' });
+    this.belongsTo(models.CategoryGroup, { foreignKey: 'group_id' });
     this.hasMany(models.Transaction, { foreignKey: 'category_id' });
   }
 

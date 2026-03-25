@@ -1,6 +1,19 @@
 const { models } = require('../libs/sequelize');
 const { BadRequestError } = require('../utils/errors');
 
+const DEFAULT_CATEGORY_GROUPS = [
+  {
+    name: 'Ingresos Generales',
+    type: 'neutral',
+    analyticsBehavior: 'include',
+  },
+  {
+    name: 'Movimientos Internos',
+    type: 'neutral',
+    analyticsBehavior: 'exclude',
+  },
+];
+
 const DEFAULT_CATEGORIES = [
   // --- GASTOS DEL SISTEMA ---
   {
@@ -11,6 +24,7 @@ const DEFAULT_CATEGORIES = [
     icon: 'Wrench',
     color: '#94a3b8',
     colorName: 'Slate',
+    groupName: 'Movimientos Internos',
   },
   {
     name: 'Transferencia (Salida)',
@@ -20,6 +34,7 @@ const DEFAULT_CATEGORIES = [
     icon: 'ArrowUpRight',
     color: '#f59e0b',
     colorName: 'Amber',
+    groupName: 'Movimientos Internos',
   },
   {
     name: 'Comision',
@@ -29,6 +44,7 @@ const DEFAULT_CATEGORIES = [
     icon: 'Percent',
     color: '#ef4444',
     colorName: 'Red',
+    groupName: 'Ingresos Generales',
   },
 
   // --- INGRESOS DEL SISTEMA ---
@@ -40,6 +56,7 @@ const DEFAULT_CATEGORIES = [
     icon: 'Wrench',
     color: '#94a3b8',
     colorName: 'Slate',
+    groupName: 'Movimientos Internos',
   },
   {
     name: 'Transferencia (Entrada)',
@@ -49,6 +66,7 @@ const DEFAULT_CATEGORIES = [
     icon: 'ArrowDownLeft',
     color: '#10b981',
     colorName: 'Emerald',
+    groupName: 'Movimientos Internos',
   },
   {
     name: 'Saldo Inicial',
@@ -58,6 +76,7 @@ const DEFAULT_CATEGORIES = [
     icon: 'Flag',
     color: '#3b82f6',
     colorName: 'Blue',
+    groupName: 'Movimientos Internos',
   },
 ];
 
@@ -125,7 +144,17 @@ async function listFiltered(userId, { includeInStats, type } = {}) {
 }
 
 async function createDefaultCategories(userId, transaction = null) {
-  const rows = DEFAULT_CATEGORIES.map((cat) => ({ ...cat, userId }));
+  const groups = await models.CategoryGroup.bulkCreate(
+    DEFAULT_CATEGORY_GROUPS.map((group) => ({ ...group, userId })),
+    { transaction, returning: true },
+  );
+
+  const groupIdByName = new Map(groups.map((group) => [group.name, group.id]));
+  const rows = DEFAULT_CATEGORIES.map(({ groupName, ...cat }) => ({
+    ...cat,
+    userId,
+    groupId: groupIdByName.get(groupName) || null,
+  }));
   await models.Category.bulkCreate(rows, { transaction });
 }
 
