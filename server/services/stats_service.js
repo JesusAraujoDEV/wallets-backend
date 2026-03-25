@@ -8,6 +8,20 @@ function parseIdFilter(input) {
   return ids.length ? Array.from(new Set(ids)) : null;
 }
 
+function parseSinglePositiveId(input) {
+  if (input === undefined || input === null || input === '') return null;
+  const parsed = parseInt(input, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function buildIncludedGroupWhere(groupId) {
+  const where = { analyticsBehavior: 'include' };
+  const parsedGroupId = parseSinglePositiveId(groupId);
+  if (parsedGroupId !== null) where.id = parsedGroupId;
+  return where;
+}
+
 function assertDateStr(s) {
   if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(String(s))) throw new Error('Fecha inválida. Use YYYY-MM-DD');
   return s;
@@ -28,7 +42,7 @@ function formatPeriod(dt, unit) {
   return `${wy}-W${String(week).padStart(2, '0')}`;
 }
 
-async function getNetCashFlow({ userId, fromDate, toDate, timeUnit = 'month', accountId }) {
+async function getNetCashFlow({ userId, fromDate, toDate, timeUnit = 'month', accountId, groupId }) {
   const from = assertDateStr(fromDate);
   const to = assertDateStr(toDate);
   const unit = timeUnit === 'week' ? 'week' : 'month';
@@ -50,7 +64,7 @@ async function getNetCashFlow({ userId, fromDate, toDate, timeUnit = 'month', ac
       model: models.Category,
       attributes: [],
       required: true,
-      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+      include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true }],
     }],
     group: [periodFn],
     order: [[periodFn, 'ASC']],
@@ -86,7 +100,7 @@ async function getNetCashFlow({ userId, fromDate, toDate, timeUnit = 'month', ac
   };
 }
 
-async function getSpendingHeatmap({ userId, fromDate, toDate, accountId }) {
+async function getSpendingHeatmap({ userId, fromDate, toDate, accountId, groupId }) {
   const from = assertDateStr(fromDate);
   const to = assertDateStr(toDate);
   const accountIds = parseIdFilter(accountId);
@@ -106,7 +120,7 @@ async function getSpendingHeatmap({ userId, fromDate, toDate, accountId }) {
       attributes: [],
       where: { type: 'gasto' },
       required: true,
-      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+      include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true }],
     }],
   group: [col('Category.name'), fn('date_part', 'dow', col('Transaction.date'))],
     order: [[col('Category.name'), 'ASC']],
@@ -162,7 +176,7 @@ function quantiles(sortedVals) {
   return { q1: interp(pos(0.25)), median: interp(pos(0.5)), q3: interp(pos(0.75)) };
 }
 
-async function getExpenseVolatility({ userId, fromDate, toDate, topN = 5 }) {
+async function getExpenseVolatility({ userId, fromDate, toDate, topN = 5, groupId }) {
   const from = assertDateStr(fromDate);
   const to = assertDateStr(toDate);
 
@@ -175,7 +189,7 @@ async function getExpenseVolatility({ userId, fromDate, toDate, topN = 5 }) {
       attributes: [],
       where: { type: 'gasto' },
       required: true,
-      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+      include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true }],
     }],
     group: [col('Category.name')],
     order: [[fn('SUM', col('Transaction.amount_usd')), 'DESC']],
@@ -194,7 +208,7 @@ async function getExpenseVolatility({ userId, fromDate, toDate, topN = 5 }) {
       attributes: [],
       where: { type: 'gasto', name: { [Op.in]: catNames } },
       required: true,
-      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+      include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true }],
     }],
     raw: true,
   });
@@ -228,7 +242,7 @@ async function getExpenseVolatility({ userId, fromDate, toDate, topN = 5 }) {
 function firstOfMonth(d) { return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)); }
 function daysInMonth(d) { return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate(); }
 
-async function getComparativeMoM({ userId, date }) {
+async function getComparativeMoM({ userId, date, groupId }) {
   const base = date ? new Date(date) : new Date();
   const currentStart = firstOfMonth(base);
   const currentEnd = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate()));
@@ -252,7 +266,7 @@ async function getComparativeMoM({ userId, date }) {
         attributes: [],
         where: { type: 'gasto' },
         required: true,
-        include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+        include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true }],
       }],
       group: [col('Category.name')], raw: true,
     }),
@@ -264,7 +278,7 @@ async function getComparativeMoM({ userId, date }) {
         attributes: [],
         where: { type: 'gasto' },
         required: true,
-        include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+        include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true }],
       }],
       group: [col('Category.name')], raw: true,
     })
@@ -304,7 +318,7 @@ async function getComparativeMoM({ userId, date }) {
   };
 }
 
-async function getMonthlyForecast({ userId, accountId, date, budgetTotal }) {
+async function getMonthlyForecast({ userId, accountId, date, budgetTotal, groupId }) {
   const now = date ? new Date(date) : new Date();
   const y = now.getUTCFullYear();
   const m = now.getUTCMonth();
@@ -326,7 +340,7 @@ async function getMonthlyForecast({ userId, accountId, date, budgetTotal }) {
       attributes: [],
       where: { type: 'gasto' },
       required: true,
-      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+      include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true }],
     }],
     raw: true,
   });
@@ -349,7 +363,7 @@ async function getMonthlyForecast({ userId, accountId, date, budgetTotal }) {
   };
 }
 
-async function getIncomeHeatmap({ userId, fromDate, toDate, accountId }) {
+async function getIncomeHeatmap({ userId, fromDate, toDate, accountId, groupId }) {
   const from = assertDateStr(fromDate);
   const to = assertDateStr(toDate);
   const accountIds = parseIdFilter(accountId);
@@ -369,7 +383,7 @@ async function getIncomeHeatmap({ userId, fromDate, toDate, accountId }) {
       attributes: [],
       where: { type: 'ingreso' },
       required: true,
-      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+      include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true }],
     }],
     group: [col('Category.name'), fn('date_part', 'dow', col('Transaction.date'))],
     order: [[col('Category.name'), 'ASC']],
@@ -399,7 +413,7 @@ async function getIncomeHeatmap({ userId, fromDate, toDate, accountId }) {
   return { categories, weekdays, data_points, summary: { peak_category: peakCategory || null, peak_day: peakDayIdx != null ? weekdays[peakDayIdx] : null } };
 }
 
-async function getIncomeVolatility({ userId, fromDate, toDate, topN = 5 }) {
+async function getIncomeVolatility({ userId, fromDate, toDate, topN = 5, groupId }) {
   const from = assertDateStr(fromDate);
   const to = assertDateStr(toDate);
 
@@ -411,7 +425,7 @@ async function getIncomeVolatility({ userId, fromDate, toDate, topN = 5 }) {
       attributes: [],
       where: { type: 'ingreso' },
       required: true,
-      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+      include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true }],
     }],
     group: [col('Category.name')],
     order: [[fn('SUM', col('Transaction.amount_usd')), 'DESC']],
@@ -429,7 +443,7 @@ async function getIncomeVolatility({ userId, fromDate, toDate, topN = 5 }) {
       attributes: [],
       where: { type: 'ingreso', name: { [Op.in]: catNames } },
       required: true,
-      include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+      include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true }],
     }],
     raw: true,
   });
@@ -453,7 +467,7 @@ async function getIncomeVolatility({ userId, fromDate, toDate, topN = 5 }) {
   return { categories_data };
 }
 
-async function getComparativeMoMIncome({ userId, date }) {
+async function getComparativeMoMIncome({ userId, date, groupId }) {
   const base = date ? new Date(date) : new Date();
   const currentStart = firstOfMonth(base);
   const currentEnd = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate()));
@@ -477,7 +491,7 @@ async function getComparativeMoMIncome({ userId, date }) {
         attributes: [],
         where: { type: 'ingreso' },
         required: true,
-        include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+        include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true }],
       }],
       group: [col('Category.name')], raw: true,
     }),
@@ -489,7 +503,7 @@ async function getComparativeMoMIncome({ userId, date }) {
         attributes: [],
         where: { type: 'ingreso' },
         required: true,
-        include: [{ model: models.CategoryGroup, attributes: [], where: { analyticsBehavior: 'include' }, required: true }],
+        include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true }],
       }],
       group: [col('Category.name')], raw: true,
     })

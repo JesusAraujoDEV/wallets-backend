@@ -42,7 +42,7 @@ function monthToRange(monthStr) {
 }
 
 async function getAllTransactions(filters) {
-  const { userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior } = filters;
+  const { userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior, groupId } = filters;
   const whereTx = { userId };
   const accountIds = parseIdFilter(accountId);
   const categoryIds = parseIdFilter(categoryId);
@@ -64,6 +64,8 @@ async function getAllTransactions(filters) {
   const catWhere = {};
   if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
   const behavior = parseAnalyticsBehavior(analyticsBehavior);
+  const parsedGroupId = parseSinglePositiveId(groupId);
+  const categoryGroupWhere = buildCategoryGroupWhere(behavior, parsedGroupId);
   if (q) {
     whereTx[Op.or] = [
       { description: { [Op.iLike]: `%${q}%` } },
@@ -75,12 +77,12 @@ async function getAllTransactions(filters) {
     model: models.Category,
     attributes: ['type', 'name'],
     where: Object.keys(catWhere).length ? catWhere : undefined,
-    required: Object.keys(catWhere).length > 0 || behavior !== null,
+    required: Object.keys(catWhere).length > 0 || behavior !== null || parsedGroupId !== null,
     include: [{
       model: models.CategoryGroup,
       attributes: [],
-      where: behavior ? { analyticsBehavior: behavior } : undefined,
-      required: behavior !== null,
+      where: categoryGroupWhere,
+      required: !!categoryGroupWhere,
     }],
   });
 
@@ -604,6 +606,20 @@ function parseAnalyticsBehavior(val) {
   return null;
 }
 
+function parseSinglePositiveId(input) {
+  if (input === undefined || input === null || input === '') return null;
+  const parsed = parseInt(input, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
+function buildCategoryGroupWhere(behavior, groupId) {
+  const where = {};
+  if (behavior) where.analyticsBehavior = behavior;
+  if (groupId !== null) where.id = groupId;
+  return Object.keys(where).length ? where : undefined;
+}
+
 function buildTxFilterWhere({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month }) {
   const whereTx = { userId };
   const accountIds = parseIdFilter(accountId);
@@ -630,11 +646,13 @@ function buildTxFilterWhere({ userId, q, categoryId, accountId, date, dateFrom, 
   return whereTx;
 }
 
-async function getTransactionsSummary({ userId, type, q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior }) {
+async function getTransactionsSummary({ userId, type, q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior, groupId }) {
   const whereTx = buildTxFilterWhere({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month });
   const catWhere = {};
   if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
   const behavior = parseAnalyticsBehavior(analyticsBehavior);
+  const parsedGroupId = parseSinglePositiveId(groupId);
+  const categoryGroupWhere = buildCategoryGroupWhere(behavior, parsedGroupId);
 
   const sumRow = await models.Transaction.findOne({
     attributes: [[fn('COALESCE', fn('SUM', col('Transaction.amount_usd')), 0), 'totalUsd']],
@@ -643,12 +661,12 @@ async function getTransactionsSummary({ userId, type, q, categoryId, accountId, 
       model: models.Category,
       attributes: [],
       where: Object.keys(catWhere).length ? catWhere : undefined,
-      required: Object.keys(catWhere).length > 0 || behavior !== null,
+      required: Object.keys(catWhere).length > 0 || behavior !== null || parsedGroupId !== null,
       include: [{
         model: models.CategoryGroup,
         attributes: [],
-        where: behavior ? { analyticsBehavior: behavior } : undefined,
-        required: behavior !== null,
+        where: categoryGroupWhere,
+        required: !!categoryGroupWhere,
       }],
     }],
     raw: true,
@@ -656,7 +674,7 @@ async function getTransactionsSummary({ userId, type, q, categoryId, accountId, 
   const total = Number(sumRow?.totalUsd || 0);
 
   // Reuse existing list function ensuring the type filter is applied
-  const items = await getAllTransactions({ userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior });
+  const items = await getAllTransactions({ userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior, groupId });
 
   if (type === 'income') {
     return { income_total: total, transactions_income: items };
@@ -665,7 +683,7 @@ async function getTransactionsSummary({ userId, type, q, categoryId, accountId, 
   }
 }
 
-async function getBalanceSummary({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior }) {
+async function getBalanceSummary({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior, groupId }) {
   const ids = parseIdFilter(accountId);
   const whereAcc = { userId };
   if (ids && ids.length > 0) whereAcc.id = ids.length > 1 ? { [Op.in]: ids } : ids[0];
@@ -694,8 +712,8 @@ async function getBalanceSummary({ userId, q, categoryId, accountId, date, dateF
   }
 
   // Income and expense totals in USD over the requested range
-  const income = await getTransactionsSummary({ userId, type: 'income', q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior });
-  const expense = await getTransactionsSummary({ userId, type: 'expense', q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior });
+  const income = await getTransactionsSummary({ userId, type: 'income', q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior, groupId });
+  const expense = await getTransactionsSummary({ userId, type: 'expense', q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior, groupId });
   const income_total_usd = Number(income.income_total || 0);
   const expense_total_usd = Number(expense.expense_total || 0);
   const net_total_usd = income_total_usd - expense_total_usd;
@@ -743,13 +761,15 @@ function monthsBetweenList(fromMonth, toMonth) {
   return out;
 }
 
-async function getMonthlySummary({ userId, type, fromMonth, toMonth, analyticsBehavior, categoryId, accountId }) {
+async function getMonthlySummary({ userId, type, fromMonth, toMonth, analyticsBehavior, categoryId, accountId, groupId }) {
   const range = monthRangeInclusive(fromMonth, toMonth);
   if (!range) throw new Error('Parámetros from_month/to_month inválidos. Formato esperado YYYY-MM y from <= to.');
 
   const catWhere = {};
   if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
   const behavior = parseAnalyticsBehavior(analyticsBehavior);
+  const parsedGroupId = parseSinglePositiveId(groupId);
+  const categoryGroupWhere = buildCategoryGroupWhere(behavior, parsedGroupId);
 
   // Build tx where with optional filters
   const whereTx = { userId, date: { [Op.gte]: range.from, [Op.lte]: range.to } };
@@ -772,8 +792,8 @@ async function getMonthlySummary({ userId, type, fromMonth, toMonth, analyticsBe
       include: [{
         model: models.CategoryGroup,
         attributes: [],
-        where: behavior ? { analyticsBehavior: behavior } : undefined,
-        required: behavior !== null,
+        where: categoryGroupWhere,
+        required: !!categoryGroupWhere,
       }],
     }],
     group: [fn('date_trunc', 'month', col('Transaction.date'))],

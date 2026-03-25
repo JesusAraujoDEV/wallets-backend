@@ -30,6 +30,10 @@
  *         name: accountId
  *         schema: { type: string, example: '1,2' }
  *         description: Filtrar por una o varias cuentas (separadas por coma)
+ *       - in: query
+ *         name: groupId
+ *         schema: { type: integer, minimum: 1, example: 10 }
+ *         description: Filtrar por grupo de categorías
  *     responses:
  *       200:
  *         description: Serie temporal de ingresos/egresos con flujo neto e índice de ahorro
@@ -79,6 +83,9 @@
  *       - in: query
  *         name: accountId
  *         schema: { type: string, example: '1,2' }
+ *       - in: query
+ *         name: groupId
+ *         schema: { type: integer, minimum: 1, example: 10 }
  *     responses:
  *       200:
  *         description: Categorías, días y puntos de datos agregados en USD normalizados
@@ -115,6 +122,9 @@
  *       - in: query
  *         name: accountId
  *         schema: { type: string, example: '1,2' }
+ *       - in: query
+ *         name: groupId
+ *         schema: { type: integer, minimum: 1, example: 10 }
  *     responses:
  *       200:
  *         description: Categorías, días y puntos de datos agregados en USD normalizados (ingresos)
@@ -151,6 +161,9 @@
  *       - in: query
  *         name: top_n_categories
  *         schema: { type: integer, example: 5, default: 5 }
+ *       - in: query
+ *         name: groupId
+ *         schema: { type: integer, minimum: 1, example: 10 }
  *     responses:
  *       200:
  *         description: Lista de categorías con q1, mediana, q3, min, max y outliers
@@ -188,6 +201,9 @@
  *       - in: query
  *         name: top_n_categories
  *         schema: { type: integer, example: 5, default: 5 }
+ *       - in: query
+ *         name: groupId
+ *         schema: { type: integer, minimum: 1, example: 10 }
  *     responses:
  *       200:
  *         description: Lista de categorías con q1, mediana, q3, min, max y outliers (ingresos)
@@ -218,6 +234,10 @@
  *         name: date
  *         schema: { type: string, example: '2025-03-15' }
  *         description: Fecha de referencia; por defecto hoy
+ *       - in: query
+ *         name: groupId
+ *         schema: { type: integer, minimum: 1, example: 10 }
+ *         description: Filtrar por grupo de categorías
  *     responses:
  *       200:
  *         description: Resumen y deltas por categoría
@@ -248,6 +268,10 @@
  *         name: date
  *         schema: { type: string, example: '2025-03-15' }
  *         description: Fecha de referencia; por defecto hoy
+ *       - in: query
+ *         name: groupId
+ *         schema: { type: integer, minimum: 1, example: 10 }
+ *         description: Filtrar por grupo de categorías
  *     responses:
  *       200:
  *         description: Resumen y deltas por categoría (ingresos)
@@ -277,6 +301,10 @@
  *       - in: query
  *         name: accountId
  *         schema: { type: string, example: '1,2' }
+ *       - in: query
+ *         name: groupId
+ *         schema: { type: integer, minimum: 1, example: 10 }
+ *         description: Filtrar por grupo de categorías
  *       - in: query
  *         name: date
  *         schema: { type: string, example: '2025-03-20' }

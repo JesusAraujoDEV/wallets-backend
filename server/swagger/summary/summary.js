@@ -25,6 +25,12 @@
  *           type: string
  *         description: IDs de cuentas separadas por coma para filtrar; si se envía un único ID, la respuesta será simplificada con solo el balance de esa cuenta
  *       - in: query
+ *         name: groupId
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: ID del grupo de categorías para filtrar transacciones por Category.group_id
+ *       - in: query
  *         name: date
  *         schema:
  *           type: string
@@ -112,6 +118,12 @@
  *         schema:
  *           type: string
  *         description: IDs de cuentas separados por coma para filtrar
+ *       - in: query
+ *         name: groupId
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: ID del grupo de categorías para filtrar transacciones por Category.group_id
  *     responses:
  *       200:
  *         description: Total y mapa mensual de ingresos o solo el total si no se envían meses
@@ -191,6 +203,12 @@
  *         schema:
  *           type: string
  *           enum: [include, exclude]
+ *       - in: query
+ *         name: groupId
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         description: ID del grupo de categorías para filtrar transacciones por Category.group_id
  *     responses:
  *       200:
  *         description: Total y mapa mensual de gastos o solo el total si no se envían meses

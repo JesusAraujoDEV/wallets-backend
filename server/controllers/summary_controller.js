@@ -7,14 +7,24 @@ function validateAnalyticsBehavior(value) {
   return v;
 }
 
+function parseOptionalGroupId(value) {
+  if (typeof value === 'undefined' || value === null || value === '') return undefined;
+  const parsed = parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new BadRequestError('groupId must be a positive integer');
+  }
+  return parsed;
+}
+
 async function balance(req, res, next) {
   try {
     const userId = req.user.id;
     const { q, categoryId, accountId, date, dateFrom, dateTo, month } = req.query;
+    const groupId = parseOptionalGroupId(req.query.groupId);
     const analyticsBehavior = typeof req.query.analyticsBehavior === 'undefined'
       ? 'include'
       : validateAnalyticsBehavior(req.query.analyticsBehavior);
-    const result = await txService.getBalanceSummary({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior });
+    const result = await txService.getBalanceSummary({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior, groupId });
     if (result.single) {
       return res.json({ ok: true, balance: result.balance_usd });
     }
@@ -31,14 +41,15 @@ async function income(req, res, next) {
   try {
     const userId = req.user.id;
     const { from_month, to_month, q, categoryId, accountId, date, dateFrom, dateTo, month } = req.query;
+    const groupId = parseOptionalGroupId(req.query.groupId);
     const analyticsBehavior = typeof req.query.analyticsBehavior === 'undefined'
       ? 'include'
       : validateAnalyticsBehavior(req.query.analyticsBehavior);
     if (from_month) {
-      const result = await txService.getMonthlySummary({ userId, type: 'income', fromMonth: from_month, toMonth: to_month, analyticsBehavior, categoryId, accountId });
+      const result = await txService.getMonthlySummary({ userId, type: 'income', fromMonth: from_month, toMonth: to_month, analyticsBehavior, categoryId, accountId, groupId });
       return res.json({ ok: true, ...result });
     }
-    const totalRes = await txService.getTransactionsSummary({ userId, type: 'income', q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior });
+    const totalRes = await txService.getTransactionsSummary({ userId, type: 'income', q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior, groupId });
     return res.json({ ok: true, income_total: totalRes.income_total });
   } catch (e) { return next(e); }
 }
@@ -47,14 +58,15 @@ async function expense(req, res, next) {
   try {
     const userId = req.user.id;
     const { from_month, to_month, q, categoryId, accountId, date, dateFrom, dateTo, month } = req.query;
+    const groupId = parseOptionalGroupId(req.query.groupId);
     const analyticsBehavior = typeof req.query.analyticsBehavior === 'undefined'
       ? 'include'
       : validateAnalyticsBehavior(req.query.analyticsBehavior);
     if (from_month) {
-      const result = await txService.getMonthlySummary({ userId, type: 'expense', fromMonth: from_month, toMonth: to_month, analyticsBehavior, categoryId, accountId });
+      const result = await txService.getMonthlySummary({ userId, type: 'expense', fromMonth: from_month, toMonth: to_month, analyticsBehavior, categoryId, accountId, groupId });
       return res.json({ ok: true, ...result });
     }
-    const totalRes = await txService.getTransactionsSummary({ userId, type: 'expense', q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior });
+    const totalRes = await txService.getTransactionsSummary({ userId, type: 'expense', q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior, groupId });
     return res.json({ ok: true, expense_total: totalRes.expense_total });
   } catch (e) { return next(e); }
 }
