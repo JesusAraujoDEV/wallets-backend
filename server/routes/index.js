@@ -48,6 +48,11 @@ function buildApiRouter() {
   } catch (e) { console.error('Failed to mount /stats router:', e.message); }
 
   try {
+    const budgetRouter = require('./budget_router');
+    router.use('/budgets', budgetRouter);
+  } catch (e) { console.error('Failed to mount /budgets router:', e.message); }
+
+  try {
     const telegramRouter = require('./telegram_router');
     router.use('/telegram', telegramRouter);
   } catch (e) { console.error('Failed to mount /telegram router:', e.message); }
