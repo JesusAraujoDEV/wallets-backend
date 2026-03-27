@@ -427,6 +427,25 @@ async function unlinkGoogle(userId, newPassword) {
   };
 }
 
+async function changePassword(userId, currentPassword, newPassword) {
+  const user = await models.User.findByPk(userId, {
+    attributes: ['id', 'authProvider', 'passwordHash'],
+  });
+
+  if (!user) throw new NotFoundError('Usuario no encontrado.');
+  if (user.authProvider !== 'local') {
+    throw new BadRequestError('Las cuentas vinculadas a proveedores externos no pueden cambiar contraseña con este flujo.');
+  }
+
+  const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!isCurrentPasswordValid) {
+    throw new UnauthorizedError('Contraseña actual incorrecta.');
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await user.update({ passwordHash });
+}
+
 module.exports = {
   login,
   register,
@@ -438,4 +457,5 @@ module.exports = {
   verifyOldEmailOtp,
   confirmNewEmail,
   unlinkGoogle,
+  changePassword,
 };

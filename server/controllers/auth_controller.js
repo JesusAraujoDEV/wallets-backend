@@ -184,6 +184,22 @@ async function unlinkGoogle(req, res, next) {
   }
 }
 
+async function changePassword(req, res, next) {
+  try {
+    const userId = req.user.id;
+    const { currentPassword, newPassword } = req.body || {};
+
+    await authService.changePassword(userId, currentPassword, newPassword);
+    return res.json({
+      success: true,
+      message: 'Contraseña actualizada correctamente.',
+      data: {},
+    });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   login,
   me,
@@ -197,4 +213,5 @@ module.exports = {
   verifyOldEmailOtp,
   confirmNewEmail,
   unlinkGoogle,
+  changePassword,
 };

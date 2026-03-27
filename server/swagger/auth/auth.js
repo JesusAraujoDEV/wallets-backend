@@ -141,6 +141,16 @@
  *           type: string
  *           minLength: 6
  *       required: [newPassword]
+ *     ChangePasswordRequest:
+ *       type: object
+ *       properties:
+ *         currentPassword:
+ *           type: string
+ *           minLength: 6
+ *         newPassword:
+ *           type: string
+ *           minLength: 8
+ *       required: [currentPassword, newPassword]
  *     GenericSuccessResponse:
  *       type: object
  *       properties:
@@ -424,6 +434,44 @@
  *               $ref: '#/components/schemas/ErrorResponse'
  *       401:
  *         description: No autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno del servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /auth/change-password:
+ *   post:
+ *     summary: Cambiar contraseña de usuario local autenticado
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/ChangePasswordRequest'
+ *     responses:
+ *       200:
+ *         description: Contraseña actualizada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/GenericSuccessResponse'
+ *       400:
+ *         description: Request inválido o cuenta no local
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: No autenticado o contraseña actual incorrecta
  *         content:
  *           application/json:
  *             schema:

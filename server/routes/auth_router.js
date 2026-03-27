@@ -14,6 +14,7 @@ const {
 	verifyOldEmailOtpSchema,
 	confirmNewEmailSchema,
 	unlinkGoogleSchema,
+	changePasswordSchema,
 } = require('../schemas/auth_schema');
 
 // Login
@@ -42,6 +43,9 @@ router.post('/email-change/confirm', protect, validator(confirmNewEmailSchema), 
 
 // Google account unlink flow
 router.post('/unlink-google', protect, validator(unlinkGoogleSchema), authCtrl.unlinkGoogle);
+
+// Password change for local users
+router.post('/change-password', protect, validator(changePasswordSchema), authCtrl.changePassword);
 
 // Logout (simbólico)
 router.post('/logout', authCtrl.logout);

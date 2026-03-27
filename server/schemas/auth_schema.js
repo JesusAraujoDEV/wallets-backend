@@ -102,6 +102,11 @@ const unlinkGoogleSchema = Joi.object({
   newPassword: Joi.string().min(6).max(200).required(),
 });
 
+const changePasswordSchema = Joi.object({
+  currentPassword: Joi.string().min(6).max(200).required(),
+  newPassword: Joi.string().min(8).max(200).required(),
+});
+
 module.exports = {
   registerSchema,
   googleLoginSchema,
@@ -113,4 +118,5 @@ module.exports = {
   verifyOldEmailOtpSchema,
   confirmNewEmailSchema,
   unlinkGoogleSchema,
+  changePasswordSchema,
 };
