@@ -29,7 +29,7 @@ async function list(req, res, next) {
 async function update(req, res, next) {
   try {
     const budgetId = parseInt(req.params.id, 10);
-    const updated = await budgetService.updateBudgetAmount(req.user.id, budgetId, req.body.amount);
+    const updated = await budgetService.updateBudget(req.user.id, budgetId, req.body || {});
     return res.json({
       success: true,
       message: 'Presupuesto actualizado correctamente.',

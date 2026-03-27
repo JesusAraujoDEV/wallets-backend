@@ -18,13 +18,15 @@
  *           example: USD
  *         period:
  *           type: string
- *           enum: [monthly]
+ *           enum: [monthly, yearly, one_time]
  *           default: monthly
- *         month:
+ *         specific_month:
  *           type: string
  *           pattern: '^\\d{4}-(0[1-9]|1[0-2])$'
+ *           nullable: true
  *           example: '2026-03'
- *       required: [amount, month]
+ *       required: [amount, period]
+ *       description: specific_month es obligatorio cuando period es one_time. Para monthly y yearly puede ser null.
  *
  *     BudgetUpdateRequest:
  *       type: object
@@ -33,7 +35,18 @@
  *           type: number
  *           format: float
  *           minimum: 0.01
- *       required: [amount]
+ *         currency:
+ *           type: string
+ *           example: USD
+ *         period:
+ *           type: string
+ *           enum: [monthly, yearly, one_time]
+ *         specific_month:
+ *           type: string
+ *           pattern: '^\\d{4}-(0[1-9]|1[0-2])$'
+ *           nullable: true
+ *       required: [amount, period]
+ *       description: specific_month es obligatorio cuando period es one_time. Para monthly y yearly puede ser null.
  *
  *     BudgetCategory:
  *       type: object
@@ -66,8 +79,9 @@
  *           type: string
  *         period:
  *           type: string
- *         month:
+ *         specific_month:
  *           type: string
+ *           nullable: true
  *         category:
  *           $ref: '#/components/schemas/BudgetCategory'
  *
@@ -90,8 +104,9 @@
  *           type: string
  *         period:
  *           type: string
- *         month:
+ *         specific_month:
  *           type: string
+ *           nullable: true
  *
  *     BudgetMutationResponse:
  *       type: object
@@ -184,7 +199,7 @@
  *         required: false
  *         schema:
  *           type: string
- *           enum: [monthly]
+ *           enum: [monthly, yearly, one_time]
  *         description: Filtra por tipo de periodo.
  *     responses:
  *       200:

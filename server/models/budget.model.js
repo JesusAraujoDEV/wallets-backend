@@ -47,9 +47,10 @@ const BudgetSchema = {
     type: DataTypes.STRING(20),
     defaultValue: 'monthly',
   },
-  month: {
-    allowNull: false,
+  specificMonth: {
+    allowNull: true,
     type: DataTypes.STRING(7),
+    field: 'specific_month',
   },
   createdAt: {
     allowNull: false,
