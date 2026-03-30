@@ -70,7 +70,7 @@ async function confirm(req, res, next) {
     const id = parseInt(req.params.id, 10);
     if (!id || Number.isNaN(id)) throw new BadRequestError('Parámetro id inválido.');
 
-    const result = await txService.confirmPendingTransaction(id, req.user.id, req.body?.date);
+    const result = await txService.confirmPendingTransaction(id, req.user.id, req.body || {});
     if (!result) throw new NotFoundError('Transacción no encontrada o no pertenece al usuario.');
 
     return res.json({ ok: true, tx: result.tx, message: 'Transacción confirmada' });

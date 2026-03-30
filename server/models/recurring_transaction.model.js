@@ -24,7 +24,7 @@ const RecurringTransactionSchema = {
     onDelete: 'CASCADE',
   },
   accountId: {
-    allowNull: false,
+    allowNull: true,
     type: DataTypes.INTEGER,
     field: 'account_id',
     references: {
@@ -52,6 +52,11 @@ const RecurringTransactionSchema = {
   amount: {
     allowNull: false,
     type: DataTypes.DECIMAL(15, 2),
+  },
+  currency: {
+    allowNull: false,
+    type: DataTypes.STRING(10),
+    defaultValue: 'USD',
   },
   description: {
     allowNull: false,

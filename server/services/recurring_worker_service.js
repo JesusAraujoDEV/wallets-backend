@@ -43,21 +43,26 @@ async function processRecurringTransaction(recurringId, userIdFilter, today) {
 
     if (!recurring) return false;
 
-    const account = await models.Account.findOne({
-      where: { id: recurring.accountId, userId: recurring.userId },
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-    });
-    if (!account) {
-      throw new Error('Cuenta de transaccion recurrente no valida.');
+    const isAutoMode = recurring.executionMode === 'auto';
+    if (isAutoMode && recurring.accountId == null) {
+      throw new Error('Las recurrencias en modo auto requieren accountId.');
     }
 
-    const isAutoMode = recurring.executionMode === 'auto';
+    if (recurring.accountId != null) {
+      const account = await models.Account.findOne({
+        where: { id: recurring.accountId, userId: recurring.userId },
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      });
+      if (!account) {
+        throw new Error('Cuenta de transaccion recurrente no valida.');
+      }
+    }
 
     await transactionService.createTransactionInT(transaction, recurring.userId, {
       description: recurring.description,
       amount: recurring.amount,
-      currency: account.currency,
+      currency: recurring.currency,
       date: recurring.nextDate,
       categoryId: recurring.categoryId,
       accountId: recurring.accountId,

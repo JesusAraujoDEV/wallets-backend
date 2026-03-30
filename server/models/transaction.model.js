@@ -50,7 +50,7 @@ const TransactionSchema = {
     references: { model: USER_TABLE, key: 'id' },
   },
   accountId: {
-    allowNull: false,
+    allowNull: true,
     type: DataTypes.INTEGER,
     field: 'account_id',
     references: { model: ACCOUNT_TABLE, key: 'id' },

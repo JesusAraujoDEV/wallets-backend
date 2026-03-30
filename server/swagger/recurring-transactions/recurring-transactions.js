@@ -11,6 +11,7 @@
  *           type: integer
  *         accountId:
  *           type: integer
+ *           nullable: true
  *         categoryId:
  *           type: integer
  *         type:
@@ -19,6 +20,10 @@
  *         amount:
  *           type: string
  *           description: Monto decimal serializado
+ *         currency:
+ *           type: string
+ *           pattern: '^[A-Z]{3}$'
+ *           default: USD
  *         description:
  *           type: string
  *         frequency:
@@ -51,6 +56,10 @@
  *           type: number
  *           format: float
  *           minimum: 0.01
+ *         currency:
+ *           type: string
+ *           pattern: '^[A-Z]{3}$'
+ *           default: USD
  *         description:
  *           type: string
  *           minLength: 1
@@ -63,6 +72,7 @@
  *           format: date
  *         accountId:
  *           type: integer
+ *           nullable: true
  *         categoryId:
  *           type: integer
  *         executionMode:
@@ -72,7 +82,7 @@
  *         isActive:
  *           type: boolean
  *           default: true
- *       required: [type, amount, description, frequency, startDate, accountId, categoryId]
+ *       required: [type, amount, description, frequency, startDate, categoryId]
  *     RecurringTransactionUpdateRequest:
  *       type: object
  *       properties:
@@ -83,6 +93,9 @@
  *           type: number
  *           format: float
  *           minimum: 0.01
+ *         currency:
+ *           type: string
+ *           pattern: '^[A-Z]{3}$'
  *         description:
  *           type: string
  *           minLength: 1
@@ -95,6 +108,7 @@
  *           format: date
  *         accountId:
  *           type: integer
+ *           nullable: true
  *         categoryId:
  *           type: integer
  *         executionMode:

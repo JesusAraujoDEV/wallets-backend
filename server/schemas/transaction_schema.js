@@ -30,7 +30,10 @@ const transferSchema = Joi.object({
 }, 'different accounts validation');
 
 const confirmTransactionSchema = Joi.object({
+  accountId: Joi.number().integer().positive().required(),
   date: dateOnly.optional(),
+  amount: Joi.number().positive().precision(2).optional(),
+  currency: Joi.string().trim().uppercase().pattern(/^[A-Z]{3}$/).optional(),
 });
 
 module.exports = { createTransactionSchema, transferSchema, confirmTransactionSchema };

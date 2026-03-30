@@ -279,17 +279,34 @@ async function createTransactionInT(t, userId, txData) {
   const categoryType = category.type; // 'ingreso' | 'gasto'
   const delta = categoryType === 'ingreso' ? Number(amount) : -Number(amount);
 
-  const account = await models.Account.findOne({
-    where: { id: accountId, userId },
-    transaction: t,
-    lock: t.LOCK.UPDATE,
-  });
-  if (!account) throw new Error('Cuenta no válida o no pertenece al usuario.');
-  if (applyBalance && categoryType === 'gasto' && Number(account.balance) < Number(amount)) {
-    throw new BadRequestError('Fondos insuficientes para completar la transacción.');
+  if (accountId == null) {
+    if (status !== 'pending') {
+      throw new BadRequestError('La cuenta es obligatoria para transacciones no pendientes.');
+    }
+    if (applyBalance) {
+      throw new BadRequestError('No se puede aplicar balance en transacciones pendientes sin cuenta.');
+    }
   }
 
-  if (applyBalance) {
+  let account = null;
+  if (accountId != null) {
+    account = await models.Account.findOne({
+      where: { id: accountId, userId },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+    if (!account) throw new Error('Cuenta no válida o no pertenece al usuario.');
+
+    if (applyBalance && currency !== account.currency) {
+      throw new BadRequestError('La moneda de la transacción debe coincidir con la moneda de la cuenta.');
+    }
+
+    if (applyBalance && categoryType === 'gasto' && Number(account.balance) < Number(amount)) {
+      throw new BadRequestError('Fondos insuficientes para completar la transacción.');
+    }
+  }
+
+  if (applyBalance && account) {
     const newBalance = Number(account.balance) + Number(delta);
     if (newBalance < 0) {
       throw new BadRequestError('Fondos insuficientes para completar la transacción.');
@@ -643,7 +660,7 @@ async function deleteTransaction(txId, userId) {
   });
 }
 
-async function confirmPendingTransaction(txId, userId, confirmDate) {
+async function confirmPendingTransaction(txId, userId, confirmPayload = {}) {
   return await sequelize.transaction(async (t) => {
     const tx = await models.Transaction.findOne({
       where: { id: txId, userId },
@@ -655,17 +672,35 @@ async function confirmPendingTransaction(txId, userId, confirmDate) {
       throw new BadRequestError('Solo se pueden confirmar transacciones pendientes.');
     }
 
-    const finalDate = confirmDate || new Date().toISOString().slice(0, 10);
+    const finalAccountId = parseInt(confirmPayload.accountId, 10);
+    if (!finalAccountId || Number.isNaN(finalAccountId)) {
+      throw new BadRequestError('accountId es obligatorio para confirmar la transacción.');
+    }
+
+    const finalDate = confirmPayload.date || new Date().toISOString().slice(0, 10);
+    const finalAmount = confirmPayload.amount != null ? Number(confirmPayload.amount) : Number(tx.amount);
+    const finalCurrency = typeof confirmPayload.currency === 'string'
+      ? confirmPayload.currency.trim().toUpperCase()
+      : tx.currency;
+
+    if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
+      throw new BadRequestError('El monto final de la transacción debe ser mayor a 0.');
+    }
+
     const category = await models.Category.findOne({ where: { id: tx.categoryId, userId }, transaction: t });
     if (!category) throw new BadRequestError('Categoría no válida o no pertenece al usuario.');
-    const account = await models.Account.findOne({ where: { id: tx.accountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
+    const account = await models.Account.findOne({ where: { id: finalAccountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
     if (!account) throw new BadRequestError('Cuenta no válida o no pertenece al usuario.');
 
-    if (category.type === 'gasto' && Number(account.balance) < Number(tx.amount)) {
+    if (finalCurrency !== account.currency) {
+      throw new BadRequestError('La moneda final debe coincidir con la moneda de la cuenta seleccionada.');
+    }
+
+    if (category.type === 'gasto' && Number(account.balance) < finalAmount) {
       throw new BadRequestError('Fondos insuficientes para completar la transacción.');
     }
 
-    const delta = category.type === 'ingreso' ? Number(tx.amount) : -Number(tx.amount);
+    const delta = category.type === 'ingreso' ? finalAmount : -finalAmount;
     const newBalance = Number(account.balance) + Number(delta);
     if (newBalance < 0) {
       throw new BadRequestError('Fondos insuficientes para completar la transacción.');
@@ -673,15 +708,23 @@ async function confirmPendingTransaction(txId, userId, confirmDate) {
 
     let amountUsd = null;
     let exchangeRateUsed = null;
-    if (tx.currency === 'VES') {
+    if (finalCurrency === 'VES') {
       exchangeRateUsed = await getVesPerUsdByDate(finalDate);
-      amountUsd = Number(tx.amount) / Number(exchangeRateUsed);
-    } else if (tx.currency === 'USD') {
-      amountUsd = tx.amount;
+      amountUsd = finalAmount / Number(exchangeRateUsed);
+    } else if (finalCurrency === 'USD') {
+      amountUsd = finalAmount;
     }
 
     await account.update({ balance: newBalance }, { transaction: t });
-    await tx.update({ status: 'completed', date: finalDate, amountUsd, exchangeRateUsed }, { transaction: t });
+    await tx.update({
+      status: 'completed',
+      accountId: finalAccountId,
+      date: finalDate,
+      amount: finalAmount,
+      currency: finalCurrency,
+      amountUsd,
+      exchangeRateUsed,
+    }, { transaction: t });
 
     return { tx };
   });

@@ -14,7 +14,7 @@
  *           description: Monto en la moneda original (string decimal)
  *         currency:
  *           type: string
- *           enum: [VES, USD]
+ *           pattern: '^[A-Z]{3}$'
  *         amountUsd:
  *           type: string
  *           description: Monto convertido a USD (string decimal)
@@ -31,11 +31,12 @@
  *           type: integer
  *         accountId:
  *           type: integer
+ *           nullable: true
  *         type:
  *           type: string
  *           enum: [ingreso, gasto]
  *           description: Tipo de la categoría asociada
- *       required: [id, description, amount, currency, date, status, categoryId, accountId]
+ *       required: [id, description, amount, currency, date, status, categoryId]
  *     GroupedTransactionsResponse:
  *       type: object
  *       properties:
@@ -241,7 +242,7 @@
 
  * /transactions/{id}/confirm:
  *   patch:
- *     summary: Confirmar transacción pendiente y aplicarla al balance
+ *     summary: Confirmar transacción pendiente y aplicarla al balance con datos finales de pago
  *     tags: [Transactions]
  *     parameters:
  *       - in: path
@@ -250,16 +251,29 @@
  *         schema:
  *           type: integer
  *     requestBody:
- *       required: false
+ *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required: [accountId]
  *             properties:
+ *               accountId:
+ *                 type: integer
+ *                 description: Cuenta final desde donde se paga la transacción.
  *               date:
  *                 type: string
  *                 format: date
- *                 description: Fecha final a confirmar. Si no se envía, usa la fecha actual.
+ *                 description: Fecha final del pago. Si no se envía, usa la fecha actual.
+ *               amount:
+ *                 type: number
+ *                 format: float
+ *                 minimum: 0.01
+ *                 description: Monto final pagado.
+ *               currency:
+ *                 type: string
+ *                 pattern: '^[A-Z]{3}$'
+ *                 description: Moneda final del pago (debe coincidir con la moneda de la cuenta).
  *     responses:
  *       200:
  *         description: Transacción confirmada y balance actualizado
