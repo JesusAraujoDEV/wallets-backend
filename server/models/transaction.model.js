@@ -38,6 +38,11 @@ const TransactionSchema = {
     allowNull: false,
     type: DataTypes.DATEONLY, // Importante: DATEONLY para YYYY-MM-DD
   },
+  status: {
+    allowNull: false,
+    type: DataTypes.STRING(20),
+    defaultValue: 'completed',
+  },
   userId: {
     allowNull: false,
     type: DataTypes.INTEGER,

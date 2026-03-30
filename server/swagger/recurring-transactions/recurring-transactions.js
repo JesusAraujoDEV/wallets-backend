@@ -30,8 +30,9 @@
  *         nextDate:
  *           type: string
  *           format: date
- *         autoCreate:
- *           type: boolean
+ *         executionMode:
+ *           type: string
+ *           enum: [auto, manual]
  *         isActive:
  *           type: boolean
  *         createdAt:
@@ -64,9 +65,10 @@
  *           type: integer
  *         categoryId:
  *           type: integer
- *         autoCreate:
- *           type: boolean
- *           default: true
+ *         executionMode:
+ *           type: string
+ *           enum: [auto, manual]
+ *           default: manual
  *         isActive:
  *           type: boolean
  *           default: true
@@ -95,8 +97,9 @@
  *           type: integer
  *         categoryId:
  *           type: integer
- *         autoCreate:
- *           type: boolean
+ *         executionMode:
+ *           type: string
+ *           enum: [auto, manual]
  *         isActive:
  *           type: boolean
  *     RecurringTriggerResponse:

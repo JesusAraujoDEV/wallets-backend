@@ -3,7 +3,11 @@ const router = express.Router();
 const { protect } = require('../middlewares/auth_handler');
 const txCtrl = require('../controllers/transaction_controller');
 const { validator } = require('../middlewares/validator');
-const { createTransactionSchema, transferSchema } = require('../schemas/transaction_schema');
+const {
+	createTransactionSchema,
+	transferSchema,
+	confirmTransactionSchema,
+} = require('../schemas/transaction_schema');
 
 router.use(protect);
 router.get('/', txCtrl.list);
@@ -11,6 +15,7 @@ router.get('/', txCtrl.list);
 router.post('/', validator(createTransactionSchema), txCtrl.create);
 
 router.post('/transfer', validator(transferSchema), txCtrl.transfer);
+router.patch('/:id/confirm', validator(confirmTransactionSchema), txCtrl.confirm);
 
 router.patch('/', txCtrl.update);
 

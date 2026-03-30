@@ -56,6 +56,7 @@ class Account extends Model {
   static associate(models) {
     this.belongsTo(models.User, { foreignKey: 'user_id' });
     this.hasMany(models.Transaction, { foreignKey: 'account_id' });
+    this.hasMany(models.RecurringTransaction, { foreignKey: 'account_id' });
   }
 
   static config(sequelize) {

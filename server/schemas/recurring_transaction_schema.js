@@ -6,6 +6,7 @@ const dateOnly = Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).message('date must 
 
 const recurringType = Joi.string().valid('ingreso', 'gasto');
 const frequency = Joi.string().valid('weekly', 'monthly', 'yearly');
+const executionMode = Joi.string().valid('auto', 'manual');
 
 const createRecurringTransactionSchema = Joi.object({
   type: recurringType.required(),
@@ -18,8 +19,8 @@ const createRecurringTransactionSchema = Joi.object({
   account_id: Joi.number().integer().positive(),
   categoryId: Joi.number().integer().positive(),
   category_id: Joi.number().integer().positive(),
-  autoCreate: Joi.boolean(),
-  auto_create: Joi.boolean(),
+  executionMode,
+  execution_mode: executionMode,
   isActive: Joi.boolean(),
   is_active: Joi.boolean(),
 }).or('startDate', 'start_date')
@@ -37,8 +38,8 @@ const updateRecurringTransactionSchema = Joi.object({
   account_id: Joi.number().integer().positive(),
   categoryId: Joi.number().integer().positive(),
   category_id: Joi.number().integer().positive(),
-  autoCreate: Joi.boolean(),
-  auto_create: Joi.boolean(),
+  executionMode,
+  execution_mode: executionMode,
   isActive: Joi.boolean(),
   is_active: Joi.boolean(),
 }).min(1);

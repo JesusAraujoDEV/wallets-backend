@@ -48,7 +48,7 @@ async function getNetCashFlow({ userId, fromDate, toDate, timeUnit = 'month', ac
   const unit = timeUnit === 'week' ? 'week' : 'month';
   const accountIds = parseIdFilter(accountId);
 
-  const whereTx = { userId, date: { [Op.gte]: from, [Op.lte]: to } };
+  const whereTx = { userId, status: 'completed', date: { [Op.gte]: from, [Op.lte]: to } };
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
 
   // Aggregate in one pass with CASE
@@ -105,7 +105,7 @@ async function getSpendingHeatmap({ userId, fromDate, toDate, accountId, groupId
   const to = assertDateStr(toDate);
   const accountIds = parseIdFilter(accountId);
 
-  const whereTx = { userId, date: { [Op.gte]: from, [Op.lte]: to } };
+  const whereTx = { userId, status: 'completed', date: { [Op.gte]: from, [Op.lte]: to } };
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
 
   const rows = await models.Transaction.findAll({
@@ -183,7 +183,7 @@ async function getExpenseVolatility({ userId, fromDate, toDate, topN = 5, groupI
   // Determine top categories by total first
   const topRows = await models.Transaction.findAll({
     attributes: [[col('Category.name'), 'category'], [fn('SUM', col('Transaction.amount_usd')), 'sum_usd']],
-    where: { userId, date: { [Op.gte]: from, [Op.lte]: to } },
+    where: { userId, status: 'completed', date: { [Op.gte]: from, [Op.lte]: to } },
     include: [{
       model: models.Category,
       attributes: [],
@@ -202,7 +202,7 @@ async function getExpenseVolatility({ userId, fromDate, toDate, topN = 5, groupI
   // Fetch all amounts for these categories
   const txs = await models.Transaction.findAll({
     attributes: [[col('Category.name'), 'category'], 'amountUsd'],
-    where: { userId, date: { [Op.gte]: from, [Op.lte]: to } },
+    where: { userId, status: 'completed', date: { [Op.gte]: from, [Op.lte]: to } },
     include: [{
       model: models.Category,
       attributes: [],
@@ -254,8 +254,8 @@ async function getComparativeMoM({ userId, date, groupId }) {
   const prevEndMTD = new Date(Date.UTC(prevEnd.getUTCFullYear(), prevEnd.getUTCMonth(), prevMTDLastDay));
 
   const fmt = (d) => d.toISOString().slice(0, 10);
-  const curWhere = { userId, date: { [Op.gte]: fmt(currentStart), [Op.lte]: fmt(currentEnd) } };
-  const prevWhere = { userId, date: { [Op.gte]: fmt(prevStart), [Op.lte]: fmt(prevEndMTD) } };
+  const curWhere = { userId, status: 'completed', date: { [Op.gte]: fmt(currentStart), [Op.lte]: fmt(currentEnd) } };
+  const prevWhere = { userId, status: 'completed', date: { [Op.gte]: fmt(prevStart), [Op.lte]: fmt(prevEndMTD) } };
 
   const [curCats, prevCats] = await Promise.all([
     models.Transaction.findAll({
@@ -328,7 +328,7 @@ async function getMonthlyForecast({ userId, accountId, date, budgetTotal, groupI
   const end = new Date(Date.UTC(y, m, days_elapsed));
   const fmt = (d) => d.toISOString().slice(0, 10);
 
-  const whereTx = { userId, date: { [Op.gte]: fmt(start), [Op.lte]: fmt(end) } };
+  const whereTx = { userId, status: 'completed', date: { [Op.gte]: fmt(start), [Op.lte]: fmt(end) } };
   const accountIds = parseIdFilter(accountId);
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
 
@@ -368,7 +368,7 @@ async function getIncomeHeatmap({ userId, fromDate, toDate, accountId, groupId }
   const to = assertDateStr(toDate);
   const accountIds = parseIdFilter(accountId);
 
-  const whereTx = { userId, date: { [Op.gte]: from, [Op.lte]: to } };
+  const whereTx = { userId, status: 'completed', date: { [Op.gte]: from, [Op.lte]: to } };
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
 
   const rows = await models.Transaction.findAll({
@@ -419,7 +419,7 @@ async function getIncomeVolatility({ userId, fromDate, toDate, topN = 5, groupId
 
   const topRows = await models.Transaction.findAll({
     attributes: [[col('Category.name'), 'category'], [fn('SUM', col('Transaction.amount_usd')), 'sum_usd']],
-    where: { userId, date: { [Op.gte]: from, [Op.lte]: to } },
+    where: { userId, status: 'completed', date: { [Op.gte]: from, [Op.lte]: to } },
     include: [{
       model: models.Category,
       attributes: [],
@@ -437,7 +437,7 @@ async function getIncomeVolatility({ userId, fromDate, toDate, topN = 5, groupId
 
   const txs = await models.Transaction.findAll({
     attributes: [[col('Category.name'), 'category'], 'amountUsd'],
-    where: { userId, date: { [Op.gte]: from, [Op.lte]: to } },
+    where: { userId, status: 'completed', date: { [Op.gte]: from, [Op.lte]: to } },
     include: [{
       model: models.Category,
       attributes: [],
@@ -479,8 +479,8 @@ async function getComparativeMoMIncome({ userId, date, groupId }) {
   const prevEndMTD = new Date(Date.UTC(prevEnd.getUTCFullYear(), prevEnd.getUTCMonth(), prevMTDLastDay));
 
   const fmt = (d) => d.toISOString().slice(0, 10);
-  const curWhere = { userId, date: { [Op.gte]: fmt(currentStart), [Op.lte]: fmt(currentEnd) } };
-  const prevWhere = { userId, date: { [Op.gte]: fmt(prevStart), [Op.lte]: fmt(prevEndMTD) } };
+  const curWhere = { userId, status: 'completed', date: { [Op.gte]: fmt(currentStart), [Op.lte]: fmt(currentEnd) } };
+  const prevWhere = { userId, status: 'completed', date: { [Op.gte]: fmt(prevStart), [Op.lte]: fmt(prevEndMTD) } };
 
   const [curCats, prevCats] = await Promise.all([
     models.Transaction.findAll({

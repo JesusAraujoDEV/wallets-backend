@@ -65,6 +65,18 @@ async function remove(req, res, next) {
   } catch (e) { return next(e); }
 }
 
+async function confirm(req, res, next) {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!id || Number.isNaN(id)) throw new BadRequestError('Parámetro id inválido.');
+
+    const result = await txService.confirmPendingTransaction(id, req.user.id, req.body?.date);
+    if (!result) throw new NotFoundError('Transacción no encontrada o no pertenece al usuario.');
+
+    return res.json({ ok: true, tx: result.tx, message: 'Transacción confirmada' });
+  } catch (e) { return next(e); }
+}
+
 async function exportTransfers(req, res, next) {
   try {
     const userId = req.user.id;
@@ -145,4 +157,4 @@ async function exportAll(req, res, next) {
   } catch (e) { return next(e); }
 }
 
-module.exports = { list, create, transfer, update, remove, exportTransfers, exportAll };
+module.exports = { list, create, transfer, update, remove, confirm, exportTransfers, exportAll };

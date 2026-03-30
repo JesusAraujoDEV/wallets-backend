@@ -79,6 +79,7 @@ class Category extends Model {
     this.belongsTo(models.User, { foreignKey: 'user_id' });
     this.belongsTo(models.CategoryGroup, { foreignKey: 'group_id' });
     this.hasMany(models.Transaction, { foreignKey: 'category_id' });
+    this.hasMany(models.RecurringTransaction, { foreignKey: 'category_id' });
     this.hasOne(models.Budget, { foreignKey: 'category_id' });
   }
 

@@ -29,4 +29,8 @@ const transferSchema = Joi.object({
   return value;
 }, 'different accounts validation');
 
-module.exports = { createTransactionSchema, transferSchema };
+const confirmTransactionSchema = Joi.object({
+  date: dateOnly.optional(),
+});
+
+module.exports = { createTransactionSchema, transferSchema, confirmTransactionSchema };

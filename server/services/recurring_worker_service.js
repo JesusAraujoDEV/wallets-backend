@@ -31,7 +31,6 @@ async function processRecurringTransaction(recurringId, userIdFilter, today) {
     const where = {
       id: recurringId,
       isActive: true,
-      autoCreate: true,
       nextDate: { [Op.lte]: today },
     };
     if (userIdFilter != null) where.userId = userIdFilter;
@@ -53,6 +52,8 @@ async function processRecurringTransaction(recurringId, userIdFilter, today) {
       throw new Error('Cuenta de transaccion recurrente no valida.');
     }
 
+    const isAutoMode = recurring.executionMode === 'auto';
+
     await transactionService.createTransactionInT(transaction, recurring.userId, {
       description: recurring.description,
       amount: recurring.amount,
@@ -60,6 +61,8 @@ async function processRecurringTransaction(recurringId, userIdFilter, today) {
       date: recurring.nextDate,
       categoryId: recurring.categoryId,
       accountId: recurring.accountId,
+      status: isAutoMode ? 'completed' : 'pending',
+      applyBalance: isAutoMode,
     });
 
     const newNextDate = calculateNextDate(recurring.nextDate, recurring.frequency);
@@ -74,7 +77,6 @@ async function processDueTransactions(userId = null) {
 
   const where = {
     isActive: true,
-    autoCreate: true,
     nextDate: { [Op.lte]: today },
   };
   if (userId != null) where.userId = userId;

@@ -88,7 +88,7 @@ async function getAllTransactions(filters) {
   });
 
   const rows = await models.Transaction.findAll({
-    attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], 'date', ['category_id', 'categoryId'], ['account_id', 'accountId']],
+    attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], 'date', 'status', ['category_id', 'categoryId'], ['account_id', 'accountId']],
     where: whereTx,
     include,
     order: [['date', 'DESC'], ['id', 'DESC']],
@@ -104,6 +104,7 @@ async function getAllTransactions(filters) {
     amountUsd: r.amountUsd,
     exchangeRateUsed: r.exchangeRateUsed,
     date: r.date,
+    status: r.status,
     categoryId: r.categoryId,
     accountId: r.accountId,
     type: r.Category?.type,
@@ -198,7 +199,7 @@ async function getGroupedTransactions(filters) {
   if (days.length === 0 && dayRows.length > 0) days.push(dayRows[0].day);
 
   const items = await models.Transaction.findAll({
-    attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], 'date', ['category_id', 'categoryId'], ['account_id', 'accountId']],
+    attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], 'date', 'status', ['category_id', 'categoryId'], ['account_id', 'accountId']],
     where: { ...whereTx, ...(days.length ? { date: { [Op.in]: days } } : {}) },
     include: [{
       model: models.Category,
@@ -244,6 +245,7 @@ async function getGroupedTransactions(filters) {
     amountUsd: it.amountUsd,
     exchangeRateUsed: it.exchangeRateUsed,
     date: it.date,
+    status: it.status,
     categoryId: it.categoryId,
     accountId: it.accountId,
     type: it.Category?.type,
@@ -253,7 +255,16 @@ async function getGroupedTransactions(filters) {
 }
 
 async function createTransactionInT(t, userId, txData) {
-  const { description, amount, currency, date, categoryId, accountId } = txData;
+  const {
+    description,
+    amount,
+    currency,
+    date,
+    categoryId,
+    accountId,
+    status = 'completed',
+    applyBalance = true,
+  } = txData;
   let amountUsd = null;
   let exchangeRateUsed = null;
   if (currency === 'VES') {
@@ -274,14 +285,17 @@ async function createTransactionInT(t, userId, txData) {
     lock: t.LOCK.UPDATE,
   });
   if (!account) throw new Error('Cuenta no válida o no pertenece al usuario.');
-  if (categoryType === 'gasto' && Number(account.balance) < Number(amount)) {
+  if (applyBalance && categoryType === 'gasto' && Number(account.balance) < Number(amount)) {
     throw new BadRequestError('Fondos insuficientes para completar la transacción.');
   }
-  const newBalance = Number(account.balance) + Number(delta);
-  if (newBalance < 0) {
-    throw new BadRequestError('Fondos insuficientes para completar la transacción.');
+
+  if (applyBalance) {
+    const newBalance = Number(account.balance) + Number(delta);
+    if (newBalance < 0) {
+      throw new BadRequestError('Fondos insuficientes para completar la transacción.');
+    }
+    await account.update({ balance: newBalance }, { transaction: t });
   }
-  await account.update({ balance: newBalance }, { transaction: t });
 
   const created = await models.Transaction.create({
     description,
@@ -290,6 +304,7 @@ async function createTransactionInT(t, userId, txData) {
     amountUsd,
     exchangeRateUsed,
     date,
+    status,
     categoryId,
     accountId,
     userId,
@@ -303,6 +318,7 @@ async function createTransactionInT(t, userId, txData) {
     amountUsd: created.amountUsd,
     exchangeRateUsed: created.exchangeRateUsed,
     date: created.date,
+    status: created.status,
     categoryId: created.categoryId,
     accountId: created.accountId,
     type: categoryType === 'ingreso' ? 'income' : 'expense',
@@ -311,7 +327,7 @@ async function createTransactionInT(t, userId, txData) {
 
 async function createTransaction(userId, txData) {
   return await sequelize.transaction(async (t) => {
-    const main = await createTransactionInT(t, userId, txData);
+    const main = await createTransactionInT(t, userId, { ...txData, status: 'completed', applyBalance: true });
 
     const comm = Number(txData?.commission || 0);
     let commissionTx = null;
@@ -330,6 +346,8 @@ async function createTransaction(userId, txData) {
         amount: comm,
         currency: txData.currency,
         date: txData.date,
+        status: 'completed',
+        applyBalance: true,
         categoryId: catCommission.id,
         accountId: txData.accountId,
       });
@@ -475,6 +493,7 @@ async function createTransfer(userId, payload) {
         amountUsd: row.amountUsd,
         exchangeRateUsed: row.exchangeRateUsed,
         date: row.date,
+        status: row.status,
         categoryId: row.categoryId,
         accountId: row.accountId,
         type: row.Category?.type === 'ingreso' ? 'income' : 'expense',
@@ -492,6 +511,8 @@ async function createTransfer(userId, payload) {
       amount: amt,
       currency: fromAccount.currency,
       date,
+      status: 'completed',
+      applyBalance: true,
       categoryId: catOut.id,
       accountId: fromAccount.id,
     });
@@ -502,6 +523,8 @@ async function createTransfer(userId, payload) {
       amount: amt,
       currency: toAccount.currency,
       date,
+      status: 'completed',
+      applyBalance: true,
       categoryId: catIn.id,
       accountId: toAccount.id,
     });
@@ -514,6 +537,8 @@ async function createTransfer(userId, payload) {
         amount: comm,
         currency: fromAccount.currency,
         date,
+        status: 'completed',
+        applyBalance: true,
         categoryId: catCommission.id,
         accountId: fromAccount.id,
       });
@@ -544,19 +569,26 @@ async function updateTransaction(txId, userId, txData) {
     const newAccountId = accountIdNum != null ? accountIdNum : oldTx.accountId;
 
     const oldCategoryType = (await models.Category.findByPk(oldTx.categoryId, { transaction: t }))?.type;
-    const oldDelta = oldCategoryType === 'ingreso' ? -Number(oldTx.amount) : Number(oldTx.amount);
-    const oldAccount = await models.Account.findOne({ where: { id: oldTx.accountId, userId }, transaction: t });
-    if (oldAccount) await oldAccount.update({ balance: Number(oldAccount.balance) + oldDelta }, { transaction: t });
+    const oldAccount = await models.Account.findOne({ where: { id: oldTx.accountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
+    if (oldTx.status === 'completed' && oldAccount) {
+      const oldDelta = oldCategoryType === 'ingreso' ? -Number(oldTx.amount) : Number(oldTx.amount);
+      await oldAccount.update({ balance: Number(oldAccount.balance) + oldDelta }, { transaction: t });
+    }
 
     const newCategory = await models.Category.findOne({ where: { id: newCategoryId, userId }, transaction: t });
     if (!newCategory) throw new Error('Nueva categoría no es válida.');
     const newCategoryType = newCategory.type;
 
-    const newAccount = await models.Account.findOne({ where: { id: newAccountId, userId }, transaction: t });
+    const newAccount = await models.Account.findOne({ where: { id: newAccountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
     if (!newAccount) throw new Error('Cuenta no válida.');
 
-    const newDelta = newCategoryType === 'ingreso' ? Number(newAmount) : -Number(newAmount);
-    await newAccount.update({ balance: Number(newAccount.balance) + newDelta }, { transaction: t });
+    if (oldTx.status === 'completed') {
+      const newDelta = newCategoryType === 'ingreso' ? Number(newAmount) : -Number(newAmount);
+      if (newCategoryType === 'gasto' && Number(newAccount.balance) < Number(newAmount)) {
+        throw new BadRequestError('Fondos insuficientes para completar la transacción.');
+      }
+      await newAccount.update({ balance: Number(newAccount.balance) + newDelta }, { transaction: t });
+    }
 
     let amountUsd = null;
     let exchangeRateUsed = null;
@@ -588,6 +620,7 @@ async function updateTransaction(txId, userId, txData) {
       accountId: oldTx.accountId,
       amountUsd: oldTx.amountUsd,
       exchangeRateUsed: oldTx.exchangeRateUsed,
+      status: oldTx.status,
       type: newCategoryType === 'ingreso' ? 'income' : 'expense',
     }};
   });
@@ -599,12 +632,58 @@ async function deleteTransaction(txId, userId) {
     if (!oldTx) return { rowCount: 0 };
 
     const oldCategoryType = (await models.Category.findByPk(oldTx.categoryId, { transaction: t }))?.type;
-    const oldDelta = oldCategoryType === 'ingreso' ? -Number(oldTx.amount) : Number(oldTx.amount);
-    const account = await models.Account.findOne({ where: { id: oldTx.accountId, userId }, transaction: t });
-    if (account) await account.update({ balance: Number(account.balance) + oldDelta }, { transaction: t });
+    const account = await models.Account.findOne({ where: { id: oldTx.accountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
+    if (oldTx.status === 'completed' && account) {
+      const oldDelta = oldCategoryType === 'ingreso' ? -Number(oldTx.amount) : Number(oldTx.amount);
+      await account.update({ balance: Number(account.balance) + oldDelta }, { transaction: t });
+    }
 
     await oldTx.destroy({ transaction: t });
     return { rowCount: 1 };
+  });
+}
+
+async function confirmPendingTransaction(txId, userId, confirmDate) {
+  return await sequelize.transaction(async (t) => {
+    const tx = await models.Transaction.findOne({
+      where: { id: txId, userId },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+    if (!tx) return null;
+    if (tx.status !== 'pending') {
+      throw new BadRequestError('Solo se pueden confirmar transacciones pendientes.');
+    }
+
+    const finalDate = confirmDate || new Date().toISOString().slice(0, 10);
+    const category = await models.Category.findOne({ where: { id: tx.categoryId, userId }, transaction: t });
+    if (!category) throw new BadRequestError('Categoría no válida o no pertenece al usuario.');
+    const account = await models.Account.findOne({ where: { id: tx.accountId, userId }, transaction: t, lock: t.LOCK.UPDATE });
+    if (!account) throw new BadRequestError('Cuenta no válida o no pertenece al usuario.');
+
+    if (category.type === 'gasto' && Number(account.balance) < Number(tx.amount)) {
+      throw new BadRequestError('Fondos insuficientes para completar la transacción.');
+    }
+
+    const delta = category.type === 'ingreso' ? Number(tx.amount) : -Number(tx.amount);
+    const newBalance = Number(account.balance) + Number(delta);
+    if (newBalance < 0) {
+      throw new BadRequestError('Fondos insuficientes para completar la transacción.');
+    }
+
+    let amountUsd = null;
+    let exchangeRateUsed = null;
+    if (tx.currency === 'VES') {
+      exchangeRateUsed = await getVesPerUsdByDate(finalDate);
+      amountUsd = Number(tx.amount) / Number(exchangeRateUsed);
+    } else if (tx.currency === 'USD') {
+      amountUsd = tx.amount;
+    }
+
+    await account.update({ balance: newBalance }, { transaction: t });
+    await tx.update({ status: 'completed', date: finalDate, amountUsd, exchangeRateUsed }, { transaction: t });
+
+    return { tx };
   });
 }
 
@@ -659,6 +738,7 @@ function buildTxFilterWhere({ userId, q, categoryId, accountId, date, dateFrom, 
 
 async function getTransactionsSummary({ userId, type, q, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior, groupId }) {
   const whereTx = buildTxFilterWhere({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month });
+  whereTx.status = 'completed';
   const catWhere = {};
   if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
   const behavior = parseAnalyticsBehavior(analyticsBehavior);
@@ -783,7 +863,7 @@ async function getMonthlySummary({ userId, type, fromMonth, toMonth, analyticsBe
   const categoryGroupWhere = buildCategoryGroupWhere(behavior, parsedGroupId);
 
   // Build tx where with optional filters
-  const whereTx = { userId, date: { [Op.gte]: range.from, [Op.lte]: range.to } };
+  const whereTx = { userId, status: 'completed', date: { [Op.gte]: range.from, [Op.lte]: range.to } };
   const accountIds = parseIdFilter(accountId);
   const categoryIds = parseIdFilter(categoryId);
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
@@ -921,6 +1001,7 @@ module.exports = {
   getMonthlySummary,
   getBalanceSummary,
   createTransactionInT,
+  confirmPendingTransaction,
   createTransaction,
   createTransfer,
   updateTransaction,

@@ -71,11 +71,11 @@ const RecurringTransactionSchema = {
     type: DataTypes.DATEONLY,
     field: 'next_date',
   },
-  autoCreate: {
+  executionMode: {
     allowNull: false,
-    type: DataTypes.BOOLEAN,
-    field: 'auto_create',
-    defaultValue: true,
+    type: DataTypes.STRING(20),
+    field: 'execution_mode',
+    defaultValue: 'manual',
   },
   isActive: {
     allowNull: false,

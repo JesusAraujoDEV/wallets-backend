@@ -24,6 +24,9 @@
  *         date:
  *           type: string
  *           format: date
+ *         status:
+ *           type: string
+ *           enum: [completed, pending]
  *         categoryId:
  *           type: integer
  *         accountId:
@@ -32,7 +35,7 @@
  *           type: string
  *           enum: [ingreso, gasto]
  *           description: Tipo de la categoría asociada
- *       required: [id, description, amount, currency, date, categoryId, accountId]
+ *       required: [id, description, amount, currency, date, status, categoryId, accountId]
  *     GroupedTransactionsResponse:
  *       type: object
  *       properties:
@@ -231,6 +234,50 @@
  *                     - $ref: '#/components/schemas/Transaction'
  *       400:
  *         description: Error de validación
+ *       401:
+ *         description: No autorizado
+ *       500:
+ *         description: Error del servidor
+
+ * /transactions/{id}/confirm:
+ *   patch:
+ *     summary: Confirmar transacción pendiente y aplicarla al balance
+ *     tags: [Transactions]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               date:
+ *                 type: string
+ *                 format: date
+ *                 description: Fecha final a confirmar. Si no se envía, usa la fecha actual.
+ *     responses:
+ *       200:
+ *         description: Transacción confirmada y balance actualizado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 ok:
+ *                   type: boolean
+ *                 tx:
+ *                   $ref: '#/components/schemas/Transaction'
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Request inválido o transacción no pendiente
+ *       401:
+ *         description: No autorizado
  *       500:
  *         description: Error del servidor
  *
@@ -383,6 +430,8 @@
  *               $ref: '#/components/schemas/TransferResponse'
  *       400:
  *         description: Error de validación (e.g., cuentas inválidas o monedas distintas)
+ *       401:
+ *         description: No autorizado
  *       500:
  *         description: Error del servidor
  */

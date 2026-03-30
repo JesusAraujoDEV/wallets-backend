@@ -10,7 +10,7 @@ function normalizeInput(payload = {}) {
     startDate: payload.startDate ?? payload.start_date,
     accountId: payload.accountId ?? payload.account_id,
     categoryId: payload.categoryId ?? payload.category_id,
-    autoCreate: payload.autoCreate ?? payload.auto_create,
+    executionMode: payload.executionMode ?? payload.execution_mode,
     isActive: payload.isActive ?? payload.is_active,
   };
 }
@@ -27,7 +27,7 @@ function shapeRecurringTransaction(row) {
     frequency: row.frequency,
     startDate: row.startDate,
     nextDate: row.nextDate,
-    autoCreate: row.autoCreate,
+    executionMode: row.executionMode,
     isActive: row.isActive,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -71,7 +71,7 @@ async function createRecurringTransaction(userId, payload = {}) {
     frequency: data.frequency,
     startDate: data.startDate,
     nextDate: data.startDate,
-    autoCreate: data.autoCreate ?? true,
+    executionMode: data.executionMode ?? 'manual',
     isActive: data.isActive ?? true,
   });
 
@@ -114,7 +114,7 @@ async function updateRecurringTransaction(userId, recurringId, payload = {}) {
   if (typeof data.startDate !== 'undefined') updates.startDate = data.startDate;
   if (typeof data.accountId !== 'undefined') updates.accountId = data.accountId;
   if (typeof data.categoryId !== 'undefined') updates.categoryId = data.categoryId;
-  if (typeof data.autoCreate !== 'undefined') updates.autoCreate = data.autoCreate;
+  if (typeof data.executionMode !== 'undefined') updates.executionMode = data.executionMode;
   if (typeof data.isActive !== 'undefined') updates.isActive = data.isActive;
 
   await recurring.update(updates);
