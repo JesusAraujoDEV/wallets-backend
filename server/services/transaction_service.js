@@ -1,6 +1,7 @@
 const axios = require('axios');
 const { Op, fn, col, where: sqWhere, literal } = require('sequelize');
 const { sequelize, models } = require('../libs/sequelize');
+const { BadRequestError } = require('../utils/errors');
 
 function parseIdFilter(input) {
   if (!input) return null;
@@ -267,9 +268,19 @@ async function createTransactionInT(t, userId, txData) {
   const categoryType = category.type; // 'ingreso' | 'gasto'
   const delta = categoryType === 'ingreso' ? Number(amount) : -Number(amount);
 
-  const account = await models.Account.findOne({ where: { id: accountId, userId }, transaction: t });
+  const account = await models.Account.findOne({
+    where: { id: accountId, userId },
+    transaction: t,
+    lock: t.LOCK.UPDATE,
+  });
   if (!account) throw new Error('Cuenta no válida o no pertenece al usuario.');
+  if (categoryType === 'gasto' && Number(account.balance) < Number(amount)) {
+    throw new BadRequestError('Fondos insuficientes para completar la transacción.');
+  }
   const newBalance = Number(account.balance) + Number(delta);
+  if (newBalance < 0) {
+    throw new BadRequestError('Fondos insuficientes para completar la transacción.');
+  }
   await account.update({ balance: newBalance }, { transaction: t });
 
   const created = await models.Transaction.create({
@@ -909,6 +920,7 @@ module.exports = {
   getTransactionsSummary,
   getMonthlySummary,
   getBalanceSummary,
+  createTransactionInT,
   createTransaction,
   createTransfer,
   updateTransaction,

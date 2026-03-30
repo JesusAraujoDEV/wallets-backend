@@ -10,6 +10,7 @@ const { config } = require('./config/config');
 const { sequelize } = require('./libs/sequelize');
 const { buildApiRouter } = require('./routes');
 const { swaggerSpec } = require('./swagger/spec');
+const { startRecurringWorkerCron } = require('./services/recurring_worker_service');
 const { logErrors, boomErrorHandler, ormErrorHandler, errorHandler } = require('./middlewares/error_handler');
 const { requestLogger } = require('./middlewares/request_logger');
 const { requestOriginLogger } = require('./middlewares/request_origin_logger');
@@ -96,6 +97,8 @@ async function bootstrap() {
   try {
     await sequelize.authenticate();
     console.log('Sequelize connected');
+    startRecurringWorkerCron();
+    console.log('Recurring worker scheduled at 00:01 daily');
   } catch (e) {
     console.error('Sequelize connection error', e.message);
   }

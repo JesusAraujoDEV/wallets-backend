@@ -33,6 +33,11 @@ function buildApiRouter() {
   } catch (e) { console.error('Failed to mount /transactions router:', e.message); }
 
   try {
+    const recurringTransactionRouter = require('./recurring_transaction_router');
+    router.use('/recurring-transactions', recurringTransactionRouter);
+  } catch (e) { console.error('Failed to mount /recurring-transactions router:', e.message); }
+
+  try {
     const summaryRouter = require('./summary_router');
     router.use('/summary', summaryRouter);
   } catch (e) { console.error('Failed to mount /summary router:', e.message); }
