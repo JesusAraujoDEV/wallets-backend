@@ -29,6 +29,7 @@
  *           enum: [ingreso, gasto]
  *         groupId:
  *           type: integer
+ *           nullable: true
  *         group:
  *           $ref: '#/components/schemas/CategoryGroupRef'
  *         icon:
@@ -44,7 +45,7 @@
  *           type: boolean
  *         userId:
  *           type: integer
- *       required: [id, name, type, groupId, userId]
+ *       required: [id, name, type, userId]
  *
  *     CategoryCreate:
  *       type: object
@@ -56,6 +57,7 @@
  *           enum: [income, expense, ingreso, gasto]
  *         groupId:
  *           type: integer
+ *           nullable: true
  *         icon:
  *           type: string
  *           nullable: true
@@ -65,7 +67,7 @@
  *         colorName:
  *           type: string
  *           nullable: true
- *       required: [name, type, groupId]
+ *       required: [name, type]
  *
  *     CategoryUpdate:
  *       type: object
@@ -77,6 +79,7 @@
  *           enum: [income, expense, ingreso, gasto]
  *         groupId:
  *           type: integer
+ *           nullable: true
  *         icon:
  *           type: string
  *           nullable: true
