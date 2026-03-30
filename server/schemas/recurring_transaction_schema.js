@@ -59,6 +59,8 @@ const payNowSchema = Joi.object({
   date: dateOnly.optional(),
   accountId: Joi.number().integer().positive(),
   account_id: Joi.number().integer().positive(),
+  amount: Joi.number().positive().precision(2),
+  currency: currencyCode,
 }).or('accountId', 'account_id');
 
 module.exports = {

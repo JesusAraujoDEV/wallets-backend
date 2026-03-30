@@ -173,11 +173,13 @@ async function payNowRecurringTransaction(userId, recurringId, payload = {}) {
     }
 
     const payDate = payload.date || dayjs().format('YYYY-MM-DD');
+    const payAmount = payload.amount ?? recurring.amount;
+    const payCurrency = (typeof payload.currency === 'string' ? payload.currency.trim().toUpperCase() : null) || recurring.currency;
 
     await transactionService.createTransactionInT(t, userId, {
       description: recurring.description,
-      amount: recurring.amount,
-      currency: recurring.currency,
+      amount: payAmount,
+      currency: payCurrency,
       date: payDate,
       categoryId: recurring.categoryId,
       accountId,

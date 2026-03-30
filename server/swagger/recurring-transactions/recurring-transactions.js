@@ -342,13 +342,22 @@
  *           schema:
  *             type: object
  *             properties:
+ *               accountId:
+ *                 type: integer
+ *                 description: Cuenta a la que se aplica el pago
+ *               amount:
+ *                 type: number
+ *                 format: float
+ *                 minimum: 0.01
+ *                 description: Monto del pago (si no se envia, usa el de la suscripcion)
+ *               currency:
+ *                 type: string
+ *                 pattern: '^[A-Z]{3}$'
+ *                 description: Moneda del pago (ej VES, USD, EUR). Si no se envia, usa la de la suscripcion
  *               date:
  *                 type: string
  *                 format: date
  *                 description: Fecha del pago (por defecto hoy)
- *               accountId:
- *                 type: integer
- *                 description: Cuenta a la que se aplica el pago (usa la de la suscripcion si no se envia)
  *             required: [accountId]
  *     responses:
  *       200:
