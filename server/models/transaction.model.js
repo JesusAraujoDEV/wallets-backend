@@ -2,6 +2,7 @@ const { Model, DataTypes, Sequelize } = require('sequelize');
 const { USER_TABLE } = require('./user.model');
 const { ACCOUNT_TABLE } = require('./account.model');
 const { CATEGORY_TABLE } = require('./category.model');
+const { DEBT_TABLE } = require('./debt.model');
 
 const TRANSACTION_TABLE = 'transactions';
 
@@ -61,6 +62,14 @@ const TransactionSchema = {
     field: 'category_id',
     references: { model: CATEGORY_TABLE, key: 'id' },
   },
+  debtId: {
+    allowNull: true,
+    type: DataTypes.INTEGER,
+    field: 'debt_id',
+    references: { model: DEBT_TABLE, key: 'id' },
+    onUpdate: 'CASCADE',
+    onDelete: 'SET NULL',
+  },
   createdAt: {
     allowNull: false,
     type: DataTypes.DATE,
@@ -80,6 +89,7 @@ class Transaction extends Model {
     this.belongsTo(models.User, { foreignKey: 'user_id' });
     this.belongsTo(models.Account, { foreignKey: 'account_id' });
     this.belongsTo(models.Category, { foreignKey: 'category_id' });
+    this.belongsTo(models.Debt, { foreignKey: 'debt_id' });
   }
 
   static config(sequelize) {

@@ -2,6 +2,7 @@ const { User, UserSchema } = require('./user.model');
 const { Account, AccountSchema } = require('./account.model');
 const { Category, CategorySchema } = require('./category.model');
 const { CategoryGroup, CategoryGroupSchema } = require('./category_group.model');
+const { Debt, DebtSchema } = require('./debt.model');
 const { Transaction, TransactionSchema } = require('./transaction.model');
 const { RecurringTransaction, RecurringTransactionSchema } = require('./recurring_transaction.model');
 const { Budget, BudgetSchema } = require('./budget.model');
@@ -14,6 +15,7 @@ function setupModels(sequelize) {
   Account.init(AccountSchema, Account.config(sequelize));
   CategoryGroup.init(CategoryGroupSchema, CategoryGroup.config(sequelize));
   Category.init(CategorySchema, Category.config(sequelize));
+  Debt.init(DebtSchema, Debt.config(sequelize));
   Transaction.init(TransactionSchema, Transaction.config(sequelize));
   RecurringTransaction.init(RecurringTransactionSchema, RecurringTransaction.config(sequelize));
   Budget.init(BudgetSchema, Budget.config(sequelize));
@@ -25,6 +27,7 @@ function setupModels(sequelize) {
   Account.associate(sequelize.models);
   CategoryGroup.associate(sequelize.models);
   Category.associate(sequelize.models);
+  Debt.associate(sequelize.models);
   Transaction.associate(sequelize.models);
   RecurringTransaction.associate(sequelize.models);
   Budget.associate(sequelize.models);

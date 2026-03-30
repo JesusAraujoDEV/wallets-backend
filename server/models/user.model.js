@@ -72,6 +72,7 @@ class User extends Model {
     this.hasMany(models.Transaction, { foreignKey: 'user_id' });
     this.hasMany(models.RecurringTransaction, { foreignKey: 'user_id' });
     this.hasMany(models.Budget, { foreignKey: 'user_id' });
+    this.hasMany(models.Debt, { foreignKey: 'user_id' });
     this.hasMany(models.OtpCode, { foreignKey: 'user_id' });
     // Aquí agregaremos la sesión de telegram cuando la crees
     this.hasOne(models.TelegramSession, { as: 'telegramSession', foreignKey: 'user_id' });
