@@ -1,5 +1,8 @@
-const { models } = require('../libs/sequelize');
-const { BadRequestError } = require('../utils/errors');
+const dayjs = require('dayjs');
+const { sequelize, models } = require('../libs/sequelize');
+const { BadRequestError, NotFoundError } = require('../utils/errors');
+const transactionService = require('./transaction_service');
+const { calculateNextDate } = require('./recurring_worker_service');
 
 function normalizeInput(payload = {}) {
   const rawAccountId = payload.accountId ?? payload.account_id;
@@ -154,9 +157,45 @@ async function deleteRecurringTransaction(userId, recurringId) {
   return { rowCount };
 }
 
+async function payNowRecurringTransaction(userId, recurringId, payload = {}) {
+  return await sequelize.transaction(async (t) => {
+    const recurring = await models.RecurringTransaction.findOne({
+      where: { id: recurringId, userId },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+    if (!recurring) throw new NotFoundError('Transaccion recurrente no encontrada.');
+    if (!recurring.isActive) throw new BadRequestError('La suscripcion esta inactiva.');
+
+    const accountId = payload.accountId ?? payload.account_id ?? recurring.accountId;
+    if (accountId == null) {
+      throw new BadRequestError('Se requiere accountId para adelantar el pago.');
+    }
+
+    const payDate = payload.date || dayjs().format('YYYY-MM-DD');
+
+    await transactionService.createTransactionInT(t, userId, {
+      description: recurring.description,
+      amount: recurring.amount,
+      currency: recurring.currency,
+      date: payDate,
+      categoryId: recurring.categoryId,
+      accountId,
+      status: 'completed',
+      applyBalance: true,
+    });
+
+    const newNextDate = calculateNextDate(recurring.nextDate, recurring.frequency);
+    await recurring.update({ nextDate: newNextDate }, { transaction: t });
+
+    return shapeRecurringTransaction(recurring);
+  });
+}
+
 module.exports = {
   createRecurringTransaction,
   listRecurringTransactions,
   updateRecurringTransaction,
   deleteRecurringTransaction,
+  payNowRecurringTransaction,
 };

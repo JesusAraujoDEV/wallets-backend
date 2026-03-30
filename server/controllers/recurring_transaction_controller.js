@@ -55,10 +55,21 @@ async function trigger(req, res, next) {
   }
 }
 
+async function payNow(req, res, next) {
+  try {
+    const recurringId = parseInt(req.params.id, 10);
+    const result = await recurringTransactionService.payNowRecurringTransaction(req.user.id, recurringId, req.body);
+    return res.json({ success: true, message: 'Pago adelantado registrado', data: result });
+  } catch (error) {
+    return next(error);
+  }
+}
+
 module.exports = {
   create,
   list,
   update,
   remove,
   trigger,
+  payNow,
 };

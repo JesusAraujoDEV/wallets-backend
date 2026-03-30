@@ -323,4 +323,69 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /recurring-transactions/{id}/pay-now:
+ *   post:
+ *     summary: Adelantar pago de una suscripcion recurrente
+ *     tags: [Recurring Transactions]
+ *     description: Crea una transaccion real con los datos de la suscripcion y avanza la fecha de proximo cobro (nextDate).
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               date:
+ *                 type: string
+ *                 format: date
+ *                 description: Fecha del pago (por defecto hoy)
+ *               accountId:
+ *                 type: integer
+ *                 description: Cuenta a la que se aplica el pago (usa la de la suscripcion si no se envia)
+ *             required: [accountId]
+ *     responses:
+ *       200:
+ *         description: Pago adelantado registrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   $ref: '#/components/schemas/RecurringTransaction'
+ *       400:
+ *         description: Request invalido (suscripcion inactiva, fondos insuficientes, etc.)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: No autenticado o token invalido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Suscripcion no encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */

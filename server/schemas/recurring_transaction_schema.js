@@ -55,8 +55,15 @@ const recurringTransactionIdParamSchema = Joi.object({
   id: Joi.number().integer().positive().required(),
 });
 
+const payNowSchema = Joi.object({
+  date: dateOnly.optional(),
+  accountId: Joi.number().integer().positive(),
+  account_id: Joi.number().integer().positive(),
+}).or('accountId', 'account_id');
+
 module.exports = {
   createRecurringTransactionSchema,
   updateRecurringTransactionSchema,
   recurringTransactionIdParamSchema,
+  payNowSchema,
 };
