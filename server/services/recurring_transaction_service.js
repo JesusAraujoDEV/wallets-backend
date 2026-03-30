@@ -172,9 +172,19 @@ async function payNowRecurringTransaction(userId, recurringId, payload = {}) {
       throw new BadRequestError('Se requiere accountId para adelantar el pago.');
     }
 
+    // Resolve account to use its currency as fallback when frontend doesn't send one
+    const account = await models.Account.findOne({
+      where: { id: accountId, userId },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+    if (!account) throw new BadRequestError('Cuenta no valida o no pertenece al usuario.');
+
     const payDate = payload.date || dayjs().format('YYYY-MM-DD');
-    const payAmount = payload.amount ?? recurring.amount;
-    const payCurrency = (typeof payload.currency === 'string' ? payload.currency.trim().toUpperCase() : null) || recurring.currency;
+    const payAmount = payload.amount !== undefined ? payload.amount : recurring.amount;
+    const payCurrency = typeof payload.currency === 'string'
+      ? payload.currency.trim().toUpperCase()
+      : account.currency;
 
     await transactionService.createTransactionInT(t, userId, {
       description: recurring.description,
