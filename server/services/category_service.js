@@ -106,9 +106,13 @@ async function list(userId) {
 
 async function create(userId, { name, type, groupId, icon, color, colorName }) {
   const dbType = normalizeType(type);
-  const group = await models.CategoryGroup.findOne({ where: { id: groupId, userId } });
-  if (!group) throw new BadRequestError('Grupo de categoría inválido o no pertenece al usuario.');
-  const created = await models.Category.create({ name, type: dbType, groupId, icon, color, colorName, userId });
+  let groupIdToSave = null;
+  if (groupId !== undefined && groupId !== null) {
+    const group = await models.CategoryGroup.findOne({ where: { id: groupId, userId } });
+    if (!group) throw new BadRequestError('Grupo de categoría inválido o no pertenece al usuario.');
+    groupIdToSave = group.id;
+  }
+  const created = await models.Category.create({ name, type: dbType, groupId: groupIdToSave, icon, color, colorName, userId });
   return { id: created.id };
 }
 
@@ -121,10 +125,12 @@ async function update(categoryId, userId, { name, type, groupId, icon, color, co
   if (typeof color === 'string') updates.color = color;
   if (typeof colorName === 'string') updates.colorName = colorName;
   if (typeof type !== 'undefined' && type !== null) updates.type = normalizeType(type);
-  if (typeof groupId !== 'undefined') {
+  if (groupId !== undefined && groupId !== null) {
     const group = await models.CategoryGroup.findOne({ where: { id: groupId, userId } });
     if (!group) throw new BadRequestError('Grupo de categoría inválido o no pertenece al usuario.');
-    updates.groupId = groupId;
+    updates.groupId = group.id;
+  } else if (groupId === null) {
+    updates.groupId = null;
   }
   if (Object.keys(updates).length === 0) return { id: categoryId };
   await cat.update(updates);
