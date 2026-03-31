@@ -81,15 +81,20 @@
  *           nullable: true
  *           description: Categoría opcional. Si no se envía, usa la de la deuda o una por defecto.
  *
- *     LinkPastTransactionsRequest:
+ *     LinkTransactionsRequest:
  *       type: object
- *       required: [categoryId]
+ *       required: [transactionIds]
  *       properties:
- *         categoryId:
- *           type: integer
- *           description: ID de la categoría cuyas transacciones huérfanas se vincularán a esta deuda
+ *         transactionIds:
+ *           type: array
+ *           items:
+ *             type: integer
+ *           minItems: 1
+ *           maxItems: 100
+ *           description: IDs de las transacciones a vincular a esta deuda (cherry-picking)
+ *           example: [10, 23, 45]
  *
- *     LinkPastTransactionsResponse:
+ *     LinkTransactionsResponse:
  *       type: object
  *       properties:
  *         success:
@@ -101,7 +106,12 @@
  *           properties:
  *             linkedCount:
  *               type: integer
- *               description: Cantidad de transacciones vinculadas
+ *               description: Cantidad de transacciones efectivamente vinculadas
+ *             linkedTransactionIds:
+ *               type: array
+ *               items:
+ *                 type: integer
+ *               description: IDs de las transacciones que fueron vinculadas
  *             debt:
  *               type: object
  *               properties:
@@ -453,14 +463,14 @@
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  *
- * /debts/{id}/link-past-transactions:
+ * /debts/{id}/link-transactions:
  *   post:
- *     summary: Vincular transacciones pasadas huérfanas a una deuda (Retro-Linker)
+ *     summary: Vincular transacciones específicas a una deuda (Cherry-picking)
  *     tags: [Debts]
  *     description: >
- *       Busca todas las transacciones completadas del usuario que coincidan con la categoría indicada
- *       y que no estén vinculadas a ninguna deuda (debt_id = NULL). Las vincula a esta deuda y
- *       recalcula el paidAmount y status de la deuda.
+ *       Recibe un array de IDs de transacciones. Valida que pertenezcan al usuario autenticado
+ *       y que no estén vinculadas a otra deuda (debt_id = NULL). Las vincula a esta deuda y
+ *       recalcula el paidAmount y status de la deuda. Operación transaccional.
  *     parameters:
  *       - in: path
  *         name: id
@@ -472,16 +482,16 @@
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/LinkPastTransactionsRequest'
+ *             $ref: '#/components/schemas/LinkTransactionsRequest'
  *     responses:
  *       200:
  *         description: Transacciones vinculadas correctamente
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/LinkPastTransactionsResponse'
+ *               $ref: '#/components/schemas/LinkTransactionsResponse'
  *       400:
- *         description: Request inválido o categoría no válida
+ *         description: Request inválido o ninguna transacción válida para vincular
  *         content:
  *           application/json:
  *             schema:

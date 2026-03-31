@@ -38,12 +38,12 @@ async function pay(req, res, next) {
   } catch (e) { return next(e); }
 }
 
-async function linkPastTransactions(req, res, next) {
+async function linkTransactions(req, res, next) {
   try {
     const debtId = parseInt(req.params.id, 10);
-    const result = await debtService.linkPastTransactions(req.user.id, debtId, req.body);
+    const result = await debtService.linkTransactions(req.user.id, debtId, req.body);
     return res.json({ success: true, message: 'Transacciones vinculadas correctamente.', data: result });
   } catch (e) { return next(e); }
 }
 
-module.exports = { list, create, update, remove, pay, linkPastTransactions };
+module.exports = { list, create, update, remove, pay, linkTransactions };

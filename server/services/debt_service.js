@@ -289,8 +289,8 @@ function computeStatus(totalAmount, paidAmount) {
   return 'pending';
 }
 
-async function linkPastTransactions(userId, debtId, data) {
-  const { categoryId } = data;
+async function linkTransactions(userId, debtId, data) {
+  const { transactionIds } = data;
 
   return await sequelize.transaction(async (t) => {
     const debt = await models.Debt.findOne({
@@ -300,23 +300,28 @@ async function linkPastTransactions(userId, debtId, data) {
     });
     if (!debt) throw new NotFoundError('Deuda no encontrada o no pertenece al usuario.');
 
-    // Validar que la categoría pertenece al usuario
-    const category = await models.Category.findOne({
-      where: { id: categoryId, userId },
+    // Buscar las transacciones candidatas: deben pertenecer al usuario y no estar vinculadas a otra deuda
+    const { Op } = require('sequelize');
+    const candidates = await models.Transaction.findAll({
+      where: {
+        id: { [Op.in]: transactionIds },
+        userId,
+        debtId: null,
+      },
       transaction: t,
     });
-    if (!category) throw new BadRequestError('Categoría no válida o no pertenece al usuario.');
 
-    // Vincular transacciones huérfanas de esa categoría a esta deuda
-    const [linkedCount] = await models.Transaction.update(
+    if (candidates.length === 0) {
+      throw new BadRequestError('Ninguna de las transacciones indicadas es válida para vincular.');
+    }
+
+    const validIds = candidates.map((tx) => tx.id);
+
+    // Vincular las transacciones seleccionadas a esta deuda
+    await models.Transaction.update(
       { debtId: debt.id },
       {
-        where: {
-          userId,
-          categoryId,
-          debtId: null,
-          status: 'completed',
-        },
+        where: { id: { [Op.in]: validIds } },
         transaction: t,
       },
     );
@@ -327,7 +332,8 @@ async function linkPastTransactions(userId, debtId, data) {
     await debt.update({ status: newStatus }, { transaction: t });
 
     return {
-      linkedCount,
+      linkedCount: validIds.length,
+      linkedTransactionIds: validIds,
       debt: {
         id: debt.id,
         status: newStatus,
@@ -346,5 +352,5 @@ module.exports = {
   updateDebt,
   deleteDebt,
   payDebt,
-  linkPastTransactions,
+  linkTransactions,
 };

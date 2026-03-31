@@ -40,8 +40,12 @@ const listDebtsQuerySchema = Joi.object({
   type: Joi.string().valid('payable', 'receivable').optional(),
 });
 
-const linkPastTransactionsSchema = Joi.object({
-  categoryId: Joi.number().integer().positive().required(),
+const linkTransactionsSchema = Joi.object({
+  transactionIds: Joi.array()
+    .items(Joi.number().integer().positive())
+    .min(1)
+    .max(100)
+    .required(),
 }).unknown(false);
 
 module.exports = {
@@ -50,5 +54,5 @@ module.exports = {
   debtIdParamSchema,
   payDebtSchema,
   listDebtsQuerySchema,
-  linkPastTransactionsSchema,
+  linkTransactionsSchema,
 };
