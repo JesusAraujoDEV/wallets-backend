@@ -17,7 +17,7 @@ const nullableAccount = Joi.alternatives().try(
 const createRecurringTransactionSchema = Joi.object({
   type: recurringType.required(),
   amount: Joi.number().positive().precision(2).required(),
-  currency: currencyCode.default('USD'),
+  currency: currencyCode.required(),
   description: Joi.string().min(1).max(255).required(),
   frequency: frequency.required(),
   startDate: dateOnly,
