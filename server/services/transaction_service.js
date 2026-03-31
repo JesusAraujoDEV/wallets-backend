@@ -14,6 +14,14 @@ function parseIdFilter(input) {
   return Array.from(new Set(ids));
 }
 
+function parseDebtIdFilter(input) {
+  if (input === undefined || input === '') return undefined; // no filtrar
+  if (input === null || input === 'null') return null; // IS NULL
+  const parsed = parseInt(input, 10);
+  if (Number.isInteger(parsed) && parsed > 0) return parsed;
+  return undefined; // valor inválido, no filtrar
+}
+
 async function getVesPerUsdByDate(date) {
   const targetDate = date ? new Date(date) : new Date();
   for (let i = 0; i < 7; i++) {
@@ -43,12 +51,14 @@ function monthToRange(monthStr) {
 }
 
 async function getAllTransactions(filters) {
-  const { userId, q, type, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior, groupId } = filters;
+  const { userId, q, type, categoryId, accountId, debtId, date, dateFrom, dateTo, month, analyticsBehavior, groupId } = filters;
   const whereTx = { userId };
   const accountIds = parseIdFilter(accountId);
   const categoryIds = parseIdFilter(categoryId);
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
   if (categoryIds) whereTx.categoryId = categoryIds.length > 1 ? { [Op.in]: categoryIds } : categoryIds[0];
+  const parsedDebtId = parseDebtIdFilter(debtId);
+  if (parsedDebtId !== undefined) whereTx.debtId = parsedDebtId;
   // date filters: range or single day
   const monthRange = monthToRange(month);
   const from = dateFrom || monthRange?.from || null;
@@ -88,7 +98,7 @@ async function getAllTransactions(filters) {
   });
 
   const rows = await models.Transaction.findAll({
-    attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], 'date', 'status', ['category_id', 'categoryId'], ['account_id', 'accountId']],
+    attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], 'date', 'status', ['category_id', 'categoryId'], ['account_id', 'accountId'], ['debt_id', 'debtId']],
     where: whereTx,
     include,
     order: [['date', 'DESC'], ['id', 'DESC']],
@@ -107,17 +117,20 @@ async function getAllTransactions(filters) {
     status: r.status,
     categoryId: r.categoryId,
     accountId: r.accountId,
+    debtId: r.debtId || null,
     type: r.Category?.type,
   }));
 }
 
 async function getGroupedTransactions(filters) {
-  const { userId, pageSize = 20, cursorDate, q, type, categoryId, accountId, date, dateFrom, dateTo, month, analyticsBehavior } = filters;
+  const { userId, pageSize = 20, cursorDate, q, type, categoryId, accountId, debtId, date, dateFrom, dateTo, month, analyticsBehavior } = filters;
   const whereTx = { userId };
   const accountIds = parseIdFilter(accountId);
   const categoryIds = parseIdFilter(categoryId);
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
   if (categoryIds) whereTx.categoryId = categoryIds.length > 1 ? { [Op.in]: categoryIds } : categoryIds[0];
+  const parsedDebtId = parseDebtIdFilter(debtId);
+  if (parsedDebtId !== undefined) whereTx.debtId = parsedDebtId;
   // Build date clause (range, single day, and pagination upper bound)
   const monthRange = monthToRange(month);
   const from = dateFrom || monthRange?.from || null;
@@ -199,7 +212,7 @@ async function getGroupedTransactions(filters) {
   if (days.length === 0 && dayRows.length > 0) days.push(dayRows[0].day);
 
   const items = await models.Transaction.findAll({
-    attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], 'date', 'status', ['category_id', 'categoryId'], ['account_id', 'accountId']],
+    attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], 'date', 'status', ['category_id', 'categoryId'], ['account_id', 'accountId'], ['debt_id', 'debtId']],
     where: { ...whereTx, ...(days.length ? { date: { [Op.in]: days } } : {}) },
     include: [{
       model: models.Category,
@@ -248,6 +261,7 @@ async function getGroupedTransactions(filters) {
     status: it.status,
     categoryId: it.categoryId,
     accountId: it.accountId,
+    debtId: it.debtId || null,
     type: it.Category?.type,
   }));
 
@@ -755,12 +769,14 @@ function buildCategoryGroupWhere(behavior, groupId) {
   return Object.keys(where).length ? where : undefined;
 }
 
-function buildTxFilterWhere({ userId, q, categoryId, accountId, date, dateFrom, dateTo, month }) {
+function buildTxFilterWhere({ userId, q, categoryId, accountId, debtId, date, dateFrom, dateTo, month }) {
   const whereTx = { userId };
   const accountIds = parseIdFilter(accountId);
   const categoryIds = parseIdFilter(categoryId);
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
   if (categoryIds) whereTx.categoryId = categoryIds.length > 1 ? { [Op.in]: categoryIds } : categoryIds[0];
+  const parsedDebtId = parseDebtIdFilter(debtId);
+  if (parsedDebtId !== undefined) whereTx.debtId = parsedDebtId;
 
   const monthRange = monthToRange(month);
   const from = dateFrom || monthRange?.from || null;

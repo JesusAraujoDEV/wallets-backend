@@ -32,6 +32,10 @@
  *         accountId:
  *           type: integer
  *           nullable: true
+ *         debtId:
+ *           type: integer
+ *           nullable: true
+ *           description: ID de la deuda vinculada (null si no está vinculada)
  *         type:
  *           type: string
  *           enum: [ingreso, gasto]
@@ -176,6 +180,14 @@
  *           type: string
  *           enum: [include, exclude]
  *         description: Filtra por comportamiento analítico del grupo de la categoría
+ *       - in: query
+ *         name: debtId
+ *         schema:
+ *           type: string
+ *         description: >
+ *           Filtrar por deuda vinculada. Enviar un número (ej. "3") para filtrar por esa deuda.
+ *           Enviar "null" (string) para obtener solo transacciones sin deuda vinculada (debt_id IS NULL).
+ *           Omitir para no filtrar por este campo.
  *     responses:
  *       200:
  *         description: Lista de transacciones o respuesta agrupada por día
