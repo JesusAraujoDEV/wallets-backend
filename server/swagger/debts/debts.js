@@ -89,9 +89,12 @@
  *           type: array
  *           items:
  *             type: integer
- *           minItems: 1
+ *           minItems: 0
  *           maxItems: 100
- *           description: IDs de las transacciones a vincular a esta deuda (cherry-picking)
+ *           description: >
+ *             IDs de las transacciones que deben quedar vinculadas a esta deuda (sync).
+ *             Las que estaban vinculadas pero no aparecen en el array serán desvinculadas.
+ *             Enviar array vacío desvincula todas las transacciones.
  *           example: [10, 23, 45]
  *
  *     LinkTransactionsResponse:
@@ -106,12 +109,15 @@
  *           properties:
  *             linkedCount:
  *               type: integer
- *               description: Cantidad de transacciones efectivamente vinculadas
+ *               description: Cantidad total de transacciones vinculadas tras la sincronización
  *             linkedTransactionIds:
  *               type: array
  *               items:
  *                 type: integer
- *               description: IDs de las transacciones que fueron vinculadas
+ *               description: IDs finales de las transacciones vinculadas
+ *             unlinkedCount:
+ *               type: integer
+ *               description: Cantidad de transacciones que fueron desvinculadas en esta operación
  *             debt:
  *               type: object
  *               properties:
@@ -123,6 +129,7 @@
  *                   type: number
  *                 paidAmount:
  *                   type: number
+ *                   description: Monto pagado recalculado con lógica multimoneda
  *                 remaining:
  *                   type: number
  *
@@ -465,12 +472,15 @@
  *
  * /debts/{id}/link-transactions:
  *   post:
- *     summary: Vincular transacciones específicas a una deuda (Cherry-picking)
+ *     summary: Sincronizar transacciones vinculadas a una deuda
  *     tags: [Debts]
  *     description: >
- *       Recibe un array de IDs de transacciones. Valida que pertenezcan al usuario autenticado
- *       y que no estén vinculadas a otra deuda (debt_id = NULL). Las vincula a esta deuda y
- *       recalcula el paidAmount y status de la deuda. Operación transaccional.
+ *       Comportamiento de SYNC: el array enviado representa el estado deseado de vinculación.
+ *       Las transacciones que estaban vinculadas pero no aparecen en el array serán desvinculadas (debt_id = NULL).
+ *       Las nuevas del array que tengan debt_id = NULL serán vinculadas.
+ *       Las que ya estén vinculadas a OTRA deuda se ignoran.
+ *       El paidAmount se recalcula con lógica multimoneda (usa amount_usd cuando la moneda difiere).
+ *       Enviar array vacío desvincula todas las transacciones de la deuda.
  *     parameters:
  *       - in: path
  *         name: id

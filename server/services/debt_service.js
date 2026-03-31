@@ -22,7 +22,16 @@ async function listDebts(userId, filters = {}) {
       ['updated_at', 'updatedAt'],
       [
         literal(`(
-          SELECT COALESCE(SUM(t.amount), 0)
+          SELECT COALESCE(SUM(
+            CASE
+              WHEN "Debt".currency = 'USD' THEN
+                CASE WHEN t.currency = 'USD' THEN t.amount ELSE COALESCE(t.amount_usd, 0) END
+              WHEN "Debt".currency = 'VES' THEN
+                CASE WHEN t.currency = 'VES' THEN t.amount ELSE 0 END
+              ELSE
+                CASE WHEN t.currency = "Debt".currency THEN t.amount ELSE COALESCE(t.amount_usd, 0) END
+            END
+          ), 0)
           FROM transactions t
           WHERE t.debt_id = "Debt".id AND t.status = 'completed'
         )`),
@@ -92,7 +101,7 @@ async function updateDebt(userId, debtId, data) {
   await debt.save();
 
   // Recalcular paid_amount para actualizar status
-  const paidAmount = await calcPaidAmount(debtId);
+  const paidAmount = await calcPaidAmount(debtId, debt.currency);
   const newStatus = computeStatus(Number(debt.totalAmount), paidAmount);
   if (debt.status !== newStatus) {
     debt.status = newStatus;
@@ -243,7 +252,7 @@ async function payDebt(userId, debtId, payData) {
     }, { transaction: t });
 
     // Recalcular paid_amount y actualizar status
-    const paidAmount = await calcPaidAmount(debt.id, t);
+    const paidAmount = await calcPaidAmount(debt.id, debt.currency, t);
     const newStatus = computeStatus(Number(debt.totalAmount), paidAmount);
     await debt.update({ status: newStatus }, { transaction: t });
 
@@ -272,15 +281,44 @@ async function payDebt(userId, debtId, payData) {
   });
 }
 
-async function calcPaidAmount(debtId, transaction = null) {
+async function calcPaidAmount(debtId, debtCurrency, transaction = null) {
   const opts = {
     where: { debtId, status: 'completed' },
-    attributes: [[fn('COALESCE', fn('SUM', col('amount')), 0), 'total']],
+    attributes: ['amount', 'currency', 'amountUsd'],
     raw: true,
   };
   if (transaction) opts.transaction = transaction;
-  const result = await models.Transaction.findOne(opts);
-  return Number(result?.total || 0);
+  const rows = await models.Transaction.findAll(opts);
+
+  let total = 0;
+  for (const tx of rows) {
+    if (debtCurrency === 'USD') {
+      // Deuda en USD: usar amountUsd si la tx es en otra moneda, o amount si es USD
+      const val = tx.currency === 'USD'
+        ? Number(tx.amount)
+        : Number(tx.amountUsd || 0);
+      total += val;
+    } else if (debtCurrency === 'VES') {
+      // Deuda en VES: usar amount si la tx es VES, o convertir inversamente si es USD
+      if (tx.currency === 'VES') {
+        total += Number(tx.amount);
+      } else {
+        // tx en USD contra deuda en VES: no hay conversión inversa confiable, sumar 0
+        // (este caso no debería ocurrir en flujo normal)
+        total += 0;
+      }
+    } else {
+      // Misma moneda: sumar directo; distinta moneda: usar amountUsd como proxy
+      if (tx.currency === debtCurrency) {
+        total += Number(tx.amount);
+      } else if (tx.amountUsd) {
+        total += Number(tx.amountUsd);
+      }
+    }
+  }
+
+  // Redondear a 2 decimales para evitar errores de punto flotante
+  return Math.round(total * 100) / 100;
 }
 
 function computeStatus(totalAmount, paidAmount) {
@@ -291,6 +329,7 @@ function computeStatus(totalAmount, paidAmount) {
 
 async function linkTransactions(userId, debtId, data) {
   const { transactionIds } = data;
+  const { Op } = require('sequelize');
 
   return await sequelize.transaction(async (t) => {
     const debt = await models.Debt.findOne({
@@ -300,40 +339,65 @@ async function linkTransactions(userId, debtId, data) {
     });
     if (!debt) throw new NotFoundError('Deuda no encontrada o no pertenece al usuario.');
 
-    // Buscar las transacciones candidatas: deben pertenecer al usuario y no estar vinculadas a otra deuda
-    const { Op } = require('sequelize');
-    const candidates = await models.Transaction.findAll({
-      where: {
-        id: { [Op.in]: transactionIds },
-        userId,
-        debtId: null,
-      },
+    // 1. Obtener las transacciones actualmente vinculadas a esta deuda
+    const currentlyLinked = await models.Transaction.findAll({
+      where: { debtId: debt.id, userId },
+      attributes: ['id'],
       transaction: t,
+      raw: true,
     });
+    const currentIds = new Set(currentlyLinked.map((r) => r.id));
+    const desiredIds = new Set(transactionIds);
 
-    if (candidates.length === 0) {
-      throw new BadRequestError('Ninguna de las transacciones indicadas es válida para vincular.');
+    // 2. Desvincular: las que están en BD pero NO en el array entrante
+    const toUnlink = [...currentIds].filter((id) => !desiredIds.has(id));
+    if (toUnlink.length > 0) {
+      await models.Transaction.update(
+        { debtId: null },
+        { where: { id: { [Op.in]: toUnlink }, userId }, transaction: t },
+      );
     }
 
-    const validIds = candidates.map((tx) => tx.id);
-
-    // Vincular las transacciones seleccionadas a esta deuda
-    await models.Transaction.update(
-      { debtId: debt.id },
-      {
-        where: { id: { [Op.in]: validIds } },
+    // 3. Vincular: las que están en el array entrante y actualmente tienen debt_id NULL o pertenecen a esta deuda
+    //    (las que ya están vinculadas a OTRA deuda se ignoran por seguridad)
+    const toLink = [...desiredIds].filter((id) => !currentIds.has(id));
+    if (toLink.length > 0) {
+      const candidates = await models.Transaction.findAll({
+        where: {
+          id: { [Op.in]: toLink },
+          userId,
+          debtId: null,
+        },
+        attributes: ['id'],
         transaction: t,
-      },
-    );
+        raw: true,
+      });
+      const validNewIds = candidates.map((r) => r.id);
+      if (validNewIds.length > 0) {
+        await models.Transaction.update(
+          { debtId: debt.id },
+          { where: { id: { [Op.in]: validNewIds } }, transaction: t },
+        );
+      }
+    }
 
-    // Recalcular paidAmount y status
-    const paidAmount = await calcPaidAmount(debt.id, t);
+    // 4. Recalcular paidAmount con lógica multimoneda
+    const paidAmount = await calcPaidAmount(debt.id, debt.currency, t);
     const newStatus = computeStatus(Number(debt.totalAmount), paidAmount);
     await debt.update({ status: newStatus }, { transaction: t });
 
+    // 5. Obtener los IDs finales vinculados
+    const finalLinked = await models.Transaction.findAll({
+      where: { debtId: debt.id, userId },
+      attributes: ['id'],
+      transaction: t,
+      raw: true,
+    });
+
     return {
-      linkedCount: validIds.length,
-      linkedTransactionIds: validIds,
+      linkedCount: finalLinked.length,
+      linkedTransactionIds: finalLinked.map((r) => r.id),
+      unlinkedCount: toUnlink.length,
       debt: {
         id: debt.id,
         status: newStatus,

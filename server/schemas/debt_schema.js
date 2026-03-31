@@ -43,7 +43,7 @@ const listDebtsQuerySchema = Joi.object({
 const linkTransactionsSchema = Joi.object({
   transactionIds: Joi.array()
     .items(Joi.number().integer().positive())
-    .min(1)
+    .min(0)
     .max(100)
     .required(),
 }).unknown(false);
