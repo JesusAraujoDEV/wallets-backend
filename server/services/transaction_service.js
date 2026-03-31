@@ -264,6 +264,7 @@ async function createTransactionInT(t, userId, txData) {
     accountId,
     status = 'completed',
     applyBalance = true,
+    debtId = null,
   } = txData;
   let amountUsd = null;
   let exchangeRateUsed = null;
@@ -325,6 +326,7 @@ async function createTransactionInT(t, userId, txData) {
     categoryId,
     accountId,
     userId,
+    debtId,
   }, { transaction: t });
 
   return { tx: {

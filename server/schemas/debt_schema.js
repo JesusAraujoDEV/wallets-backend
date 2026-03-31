@@ -12,6 +12,7 @@ const createDebtSchema = Joi.object({
   totalAmount: Joi.number().positive().precision(2).required(),
   currency: Joi.string().max(10).default('USD'),
   dueDate: dateOnly.allow(null).optional(),
+  categoryId: Joi.number().integer().positive().allow(null).optional(),
 }).unknown(false);
 
 const updateDebtSchema = Joi.object({
@@ -19,6 +20,7 @@ const updateDebtSchema = Joi.object({
   description: Joi.string().max(255).allow('', null).optional(),
   dueDate: dateOnly.allow(null).optional(),
   totalAmount: Joi.number().positive().precision(2).optional(),
+  categoryId: Joi.number().integer().positive().allow(null).optional(),
 }).unknown(false).min(1);
 
 const debtIdParamSchema = Joi.object({
@@ -38,10 +40,15 @@ const listDebtsQuerySchema = Joi.object({
   type: Joi.string().valid('payable', 'receivable').optional(),
 });
 
+const linkPastTransactionsSchema = Joi.object({
+  categoryId: Joi.number().integer().positive().required(),
+}).unknown(false);
+
 module.exports = {
   createDebtSchema,
   updateDebtSchema,
   debtIdParamSchema,
   payDebtSchema,
   listDebtsQuerySchema,
+  linkPastTransactionsSchema,
 };

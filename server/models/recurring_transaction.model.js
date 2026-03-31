@@ -2,6 +2,7 @@ const { Model, DataTypes, Sequelize } = require('sequelize');
 const { USER_TABLE } = require('./user.model');
 const { ACCOUNT_TABLE } = require('./account.model');
 const { CATEGORY_TABLE } = require('./category.model');
+const { DEBT_TABLE } = require('./debt.model');
 
 const RECURRING_TRANSACTION_TABLE = 'recurring_transactions';
 
@@ -82,6 +83,14 @@ const RecurringTransactionSchema = {
     field: 'execution_mode',
     defaultValue: 'manual',
   },
+  debtId: {
+    allowNull: true,
+    type: DataTypes.INTEGER,
+    field: 'debt_id',
+    references: { model: DEBT_TABLE, key: 'id' },
+    onUpdate: 'CASCADE',
+    onDelete: 'SET NULL',
+  },
   isActive: {
     allowNull: false,
     type: DataTypes.BOOLEAN,
@@ -107,6 +116,7 @@ class RecurringTransaction extends Model {
     this.belongsTo(models.User, { foreignKey: 'user_id' });
     this.belongsTo(models.Account, { foreignKey: 'account_id' });
     this.belongsTo(models.Category, { foreignKey: 'category_id' });
+    this.belongsTo(models.Debt, { foreignKey: 'debt_id' });
   }
 
   static config(sequelize) {

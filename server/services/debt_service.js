@@ -16,6 +16,7 @@ async function listDebts(userId, filters = {}) {
       ['total_amount', 'totalAmount'],
       'currency',
       ['due_date', 'dueDate'],
+      ['category_id', 'categoryId'],
       'status',
       ['created_at', 'createdAt'],
       ['updated_at', 'updatedAt'],
@@ -57,6 +58,7 @@ async function createDebt(userId, data) {
     totalAmount: data.totalAmount,
     currency: data.currency || 'USD',
     dueDate: data.dueDate || null,
+    categoryId: data.categoryId || null,
     status: 'pending',
   });
 
@@ -68,6 +70,7 @@ async function createDebt(userId, data) {
     totalAmount: Number(debt.totalAmount),
     currency: debt.currency,
     dueDate: debt.dueDate,
+    categoryId: debt.categoryId,
     status: debt.status,
     paidAmount: 0,
     remaining: Number(debt.totalAmount),
@@ -84,6 +87,7 @@ async function updateDebt(userId, debtId, data) {
   if (data.description !== undefined) debt.description = data.description;
   if (data.dueDate !== undefined) debt.dueDate = data.dueDate;
   if (data.totalAmount !== undefined) debt.totalAmount = data.totalAmount;
+  if (data.categoryId !== undefined) debt.categoryId = data.categoryId;
 
   await debt.save();
 
@@ -103,6 +107,7 @@ async function updateDebt(userId, debtId, data) {
     totalAmount: Number(debt.totalAmount),
     currency: debt.currency,
     dueDate: debt.dueDate,
+    categoryId: debt.categoryId,
     status: debt.status,
     paidAmount,
     remaining: Math.max(0, Number(debt.totalAmount) - paidAmount),
@@ -155,6 +160,16 @@ async function payDebt(userId, debtId, payData) {
     const catType = isExpense ? 'gasto' : 'ingreso';
 
     let resolvedCategoryId = categoryId;
+    if (!resolvedCategoryId && debt.categoryId) {
+      // Usar la categoría asignada a la deuda como fallback
+      const debtCat = await models.Category.findOne({
+        where: { id: debt.categoryId, userId },
+        transaction: t,
+      });
+      if (debtCat && debtCat.type === catType) {
+        resolvedCategoryId = debtCat.id;
+      }
+    }
     if (!resolvedCategoryId) {
       // Buscar o crear categoría por defecto para abonos de deuda
       const defaultCatName = isExpense ? 'Pago de Deuda' : 'Cobro de Deuda';
@@ -274,6 +289,56 @@ function computeStatus(totalAmount, paidAmount) {
   return 'pending';
 }
 
+async function linkPastTransactions(userId, debtId, data) {
+  const { categoryId } = data;
+
+  return await sequelize.transaction(async (t) => {
+    const debt = await models.Debt.findOne({
+      where: { id: debtId, userId },
+      transaction: t,
+      lock: t.LOCK.UPDATE,
+    });
+    if (!debt) throw new NotFoundError('Deuda no encontrada o no pertenece al usuario.');
+
+    // Validar que la categoría pertenece al usuario
+    const category = await models.Category.findOne({
+      where: { id: categoryId, userId },
+      transaction: t,
+    });
+    if (!category) throw new BadRequestError('Categoría no válida o no pertenece al usuario.');
+
+    // Vincular transacciones huérfanas de esa categoría a esta deuda
+    const [linkedCount] = await models.Transaction.update(
+      { debtId: debt.id },
+      {
+        where: {
+          userId,
+          categoryId,
+          debtId: null,
+          status: 'completed',
+        },
+        transaction: t,
+      },
+    );
+
+    // Recalcular paidAmount y status
+    const paidAmount = await calcPaidAmount(debt.id, t);
+    const newStatus = computeStatus(Number(debt.totalAmount), paidAmount);
+    await debt.update({ status: newStatus }, { transaction: t });
+
+    return {
+      linkedCount,
+      debt: {
+        id: debt.id,
+        status: newStatus,
+        totalAmount: Number(debt.totalAmount),
+        paidAmount,
+        remaining: Math.max(0, Number(debt.totalAmount) - paidAmount),
+      },
+    };
+  });
+}
+
 module.exports = {
   listDebts,
   getDebtById,
@@ -281,4 +346,5 @@ module.exports = {
   updateDebt,
   deleteDebt,
   payDebt,
+  linkPastTransactions,
 };

@@ -19,6 +19,7 @@ function normalizeInput(payload = {}) {
     categoryId: payload.categoryId ?? payload.category_id,
     executionMode: payload.executionMode ?? payload.execution_mode,
     isActive: payload.isActive ?? payload.is_active,
+    debtId: payload.debtId ?? payload.debt_id,
   };
 }
 
@@ -28,6 +29,7 @@ function shapeRecurringTransaction(row) {
     userId: row.userId,
     accountId: row.accountId,
     categoryId: row.categoryId,
+    debtId: row.debtId || null,
     type: row.type,
     amount: row.amount,
     currency: row.currency,
@@ -82,6 +84,7 @@ async function createRecurringTransaction(userId, payload = {}) {
     userId,
     accountId: data.accountId,
     categoryId: data.categoryId,
+    debtId: data.debtId || null,
     type: data.type,
     amount: data.amount,
     currency: data.currency ?? 'USD',
@@ -147,6 +150,7 @@ async function updateRecurringTransaction(userId, recurringId, payload = {}) {
   if (typeof data.executionMode !== 'undefined') updates.executionMode = data.executionMode;
   if (typeof data.isActive !== 'undefined') updates.isActive = data.isActive;
   if (typeof data.nextDate !== 'undefined') updates.nextDate = data.nextDate;
+  if (typeof data.debtId !== 'undefined') updates.debtId = data.debtId;
 
   await recurring.update(updates);
   return shapeRecurringTransaction(recurring);
@@ -197,6 +201,7 @@ async function payNowRecurringTransaction(userId, recurringId, payload = {}) {
       accountId,
       status: 'completed',
       applyBalance: true,
+      debtId: recurring.debtId || null,
     });
 
     const newNextDate = calculateNextDate(recurring.nextDate, recurring.frequency);

@@ -1,5 +1,6 @@
 const { Model, DataTypes, Sequelize } = require('sequelize');
 const { USER_TABLE } = require('./user.model');
+const { CATEGORY_TABLE } = require('./category.model');
 
 const DEBT_TABLE = 'debts';
 
@@ -47,6 +48,14 @@ const DebtSchema = {
     type: DataTypes.DATEONLY,
     field: 'due_date',
   },
+  categoryId: {
+    allowNull: true,
+    type: DataTypes.INTEGER,
+    field: 'category_id',
+    references: { model: CATEGORY_TABLE, key: 'id' },
+    onUpdate: 'CASCADE',
+    onDelete: 'SET NULL',
+  },
   status: {
     allowNull: false,
     type: DataTypes.STRING(20),
@@ -70,7 +79,9 @@ const DebtSchema = {
 class Debt extends Model {
   static associate(models) {
     this.belongsTo(models.User, { foreignKey: 'user_id' });
+    this.belongsTo(models.Category, { foreignKey: 'category_id' });
     this.hasMany(models.Transaction, { foreignKey: 'debt_id' });
+    this.hasMany(models.RecurringTransaction, { foreignKey: 'debt_id' });
   }
 
   static config(sequelize) {

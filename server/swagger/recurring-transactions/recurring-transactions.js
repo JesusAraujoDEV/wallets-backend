@@ -14,6 +14,10 @@
  *           nullable: true
  *         categoryId:
  *           type: integer
+ *         debtId:
+ *           type: integer
+ *           nullable: true
+ *           description: ID de la deuda vinculada. Si se establece, las transacciones generadas se asocian automáticamente a esta deuda.
  *         type:
  *           type: string
  *           enum: [ingreso, gasto]
@@ -22,7 +26,6 @@
  *           description: Monto decimal serializado
  *         currency:
  *           type: string
- *           pattern: '^[A-Z]{3}$'
  *           default: USD
  *         description:
  *           type: string
@@ -58,7 +61,6 @@
  *           minimum: 0.01
  *         currency:
  *           type: string
- *           pattern: '^[A-Z]{3}$'
  *           default: USD
  *         description:
  *           type: string
@@ -75,6 +77,10 @@
  *           nullable: true
  *         categoryId:
  *           type: integer
+ *         debtId:
+ *           type: integer
+ *           nullable: true
+ *           description: ID de deuda a vincular. Las transacciones generadas heredarán este debt_id.
  *         executionMode:
  *           type: string
  *           enum: [auto, manual]
@@ -95,7 +101,6 @@
  *           minimum: 0.01
  *         currency:
  *           type: string
- *           pattern: '^[A-Z]{3}$'
  *         description:
  *           type: string
  *           minLength: 1
@@ -106,7 +111,6 @@
  *         startDate:
  *           type: string
  *           format: date
- *           description: Fecha de inicio de la recurrencia
  *         nextDate:
  *           type: string
  *           format: date
@@ -116,6 +120,10 @@
  *           nullable: true
  *         categoryId:
  *           type: integer
+ *         debtId:
+ *           type: integer
+ *           nullable: true
+ *           description: ID de deuda a vincular o null para desvincular
  *         executionMode:
  *           type: string
  *           enum: [auto, manual]
@@ -333,7 +341,7 @@
  *   post:
  *     summary: Adelantar pago de una suscripcion recurrente
  *     tags: [Recurring Transactions]
- *     description: Crea una transaccion real con los datos de la suscripcion y avanza la fecha de proximo cobro (nextDate).
+ *     description: Crea una transaccion real con los datos de la suscripcion y avanza la fecha de proximo cobro (nextDate). Si la recurrencia tiene debtId, la transaccion se vincula automaticamente a esa deuda.
  *     parameters:
  *       - in: path
  *         name: id
@@ -357,8 +365,7 @@
  *                 description: Monto del pago (si no se envia, usa el de la suscripcion)
  *               currency:
  *                 type: string
- *                 pattern: '^[A-Z]{3}$'
- *                 description: Moneda del pago (ej VES, USD, EUR). Si no se envia, usa la de la suscripcion
+ *                 description: Moneda del pago (ej VES, USD, EUR). Si no se envia, usa la de la cuenta
  *               date:
  *                 type: string
  *                 format: date

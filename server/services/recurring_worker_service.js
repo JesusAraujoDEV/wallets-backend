@@ -68,6 +68,7 @@ async function processRecurringTransaction(recurringId, userIdFilter, today) {
       accountId: recurring.accountId,
       status: isAutoMode ? 'completed' : 'pending',
       applyBalance: isAutoMode,
+      debtId: recurring.debtId || null,
     });
 
     const newNextDate = calculateNextDate(recurring.nextDate, recurring.frequency);

@@ -30,6 +30,8 @@ const createRecurringTransactionSchema = Joi.object({
   execution_mode: executionMode,
   isActive: Joi.boolean(),
   is_active: Joi.boolean(),
+  debtId: Joi.number().integer().positive().allow(null),
+  debt_id: Joi.number().integer().positive().allow(null),
 }).or('startDate', 'start_date')
   .or('categoryId', 'category_id');
 
@@ -51,6 +53,8 @@ const updateRecurringTransactionSchema = Joi.object({
   execution_mode: executionMode,
   isActive: Joi.boolean(),
   is_active: Joi.boolean(),
+  debtId: Joi.number().integer().positive().allow(null),
+  debt_id: Joi.number().integer().positive().allow(null),
 }).min(1);
 
 const recurringTransactionIdParamSchema = Joi.object({

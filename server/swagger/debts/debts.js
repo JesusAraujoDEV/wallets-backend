@@ -31,6 +31,10 @@
  *           format: date
  *           nullable: true
  *           example: '2026-06-30'
+ *         categoryId:
+ *           type: integer
+ *           nullable: true
+ *           description: Categoría asociada a la deuda (ej. "Carro"). Se usa como fallback en pagos.
  *
  *     DebtUpdateRequest:
  *       type: object
@@ -50,6 +54,10 @@
  *           type: number
  *           format: float
  *           minimum: 0.01
+ *         categoryId:
+ *           type: integer
+ *           nullable: true
+ *           description: Categoría asociada a la deuda
  *
  *     DebtPayRequest:
  *       type: object
@@ -71,7 +79,42 @@
  *         categoryId:
  *           type: integer
  *           nullable: true
- *           description: Categoría opcional. Si no se envía, se usa una por defecto.
+ *           description: Categoría opcional. Si no se envía, usa la de la deuda o una por defecto.
+ *
+ *     LinkPastTransactionsRequest:
+ *       type: object
+ *       required: [categoryId]
+ *       properties:
+ *         categoryId:
+ *           type: integer
+ *           description: ID de la categoría cuyas transacciones huérfanas se vincularán a esta deuda
+ *
+ *     LinkPastTransactionsResponse:
+ *       type: object
+ *       properties:
+ *         success:
+ *           type: boolean
+ *         message:
+ *           type: string
+ *         data:
+ *           type: object
+ *           properties:
+ *             linkedCount:
+ *               type: integer
+ *               description: Cantidad de transacciones vinculadas
+ *             debt:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: integer
+ *                 status:
+ *                   type: string
+ *                 totalAmount:
+ *                   type: number
+ *                 paidAmount:
+ *                   type: number
+ *                 remaining:
+ *                   type: number
  *
  *     DebtItem:
  *       type: object
@@ -93,6 +136,9 @@
  *         dueDate:
  *           type: string
  *           format: date
+ *           nullable: true
+ *         categoryId:
+ *           type: integer
  *           nullable: true
  *         status:
  *           type: string
@@ -195,6 +241,12 @@
  *                   type: array
  *                   items:
  *                     $ref: '#/components/schemas/DebtItem'
+ *       400:
+ *         description: Request inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       401:
  *         description: No autenticado o token inválido
  *         content:
@@ -328,6 +380,12 @@
  *                   type: string
  *                 data:
  *                   type: object
+ *       400:
+ *         description: Request inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       401:
  *         description: No autenticado o token inválido
  *         content:
@@ -372,6 +430,58 @@
  *               $ref: '#/components/schemas/DebtPayResponse'
  *       400:
  *         description: Request inválido o fondos insuficientes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       401:
+ *         description: No autenticado o token inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       404:
+ *         description: Deuda no encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *       500:
+ *         description: Error interno
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *
+ * /debts/{id}/link-past-transactions:
+ *   post:
+ *     summary: Vincular transacciones pasadas huérfanas a una deuda (Retro-Linker)
+ *     tags: [Debts]
+ *     description: >
+ *       Busca todas las transacciones completadas del usuario que coincidan con la categoría indicada
+ *       y que no estén vinculadas a ninguna deuda (debt_id = NULL). Las vincula a esta deuda y
+ *       recalcula el paidAmount y status de la deuda.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LinkPastTransactionsRequest'
+ *     responses:
+ *       200:
+ *         description: Transacciones vinculadas correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/LinkPastTransactionsResponse'
+ *       400:
+ *         description: Request inválido o categoría no válida
  *         content:
  *           application/json:
  *             schema:
