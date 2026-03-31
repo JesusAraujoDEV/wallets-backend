@@ -41,6 +41,8 @@ const updateRecurringTransactionSchema = Joi.object({
   frequency,
   startDate: dateOnly,
   start_date: dateOnly,
+  nextDate: dateOnly,
+  next_date: dateOnly,
   accountId: nullableAccount,
   account_id: nullableAccount,
   categoryId: Joi.number().integer().positive(),

@@ -14,6 +14,7 @@ function normalizeInput(payload = {}) {
     description: payload.description,
     frequency: payload.frequency,
     startDate: payload.startDate ?? payload.start_date,
+    nextDate: payload.nextDate ?? payload.next_date,
     accountId: rawAccountId === '' ? null : rawAccountId,
     categoryId: payload.categoryId ?? payload.category_id,
     executionMode: payload.executionMode ?? payload.execution_mode,
@@ -145,6 +146,7 @@ async function updateRecurringTransaction(userId, recurringId, payload = {}) {
   if (typeof data.categoryId !== 'undefined') updates.categoryId = data.categoryId;
   if (typeof data.executionMode !== 'undefined') updates.executionMode = data.executionMode;
   if (typeof data.isActive !== 'undefined') updates.isActive = data.isActive;
+  if (typeof data.nextDate !== 'undefined') updates.nextDate = data.nextDate;
 
   await recurring.update(updates);
   return shapeRecurringTransaction(recurring);

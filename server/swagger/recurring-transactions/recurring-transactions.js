@@ -106,6 +106,11 @@
  *         startDate:
  *           type: string
  *           format: date
+ *           description: Fecha de inicio de la recurrencia
+ *         nextDate:
+ *           type: string
+ *           format: date
+ *           description: Fecha del proximo pago (permite posponer manualmente)
  *         accountId:
  *           type: integer
  *           nullable: true
