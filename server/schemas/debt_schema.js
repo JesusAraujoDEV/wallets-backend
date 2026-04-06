@@ -31,8 +31,9 @@ const payDebtSchema = Joi.object({
   amount: Joi.number().positive().precision(2).required(),
   currency: Joi.string().max(10).required(),
   accountId: Joi.number().integer().positive().required(),
-  date: dateOnly.required(),
+  date: dateOnly.optional(),
   categoryId: Joi.number().integer().positive().optional(),
+  exchangeRate: Joi.number().positive().precision(6).optional(),
 }).unknown(false);
 
 const listDebtsQuerySchema = Joi.object({

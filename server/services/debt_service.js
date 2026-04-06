@@ -1,6 +1,7 @@
 const { fn, col, literal } = require('sequelize');
 const { sequelize, models } = require('../libs/sequelize');
 const { BadRequestError, NotFoundError } = require('../utils/errors');
+const { getUsdRateByDate, resolveDateUtc } = require('./exchange_rate_service');
 
 async function listDebts(userId, filters = {}) {
   const where = { userId };
@@ -27,7 +28,11 @@ async function listDebts(userId, filters = {}) {
               WHEN "Debt".currency = 'USD' THEN
                 CASE WHEN t.currency = 'USD' THEN t.amount ELSE COALESCE(t.amount_usd, 0) END
               WHEN "Debt".currency = 'VES' THEN
-                CASE WHEN t.currency = 'VES' THEN t.amount ELSE 0 END
+                CASE
+                  WHEN t.currency = 'VES' THEN t.amount
+                  WHEN t.currency = 'USD' THEN COALESCE(t.amount_usd, 0) * COALESCE(t.exchange_rate_used, 0)
+                  ELSE 0
+                END
               ELSE
                 CASE WHEN t.currency = "Debt".currency THEN t.amount ELSE COALESCE(t.amount_usd, 0) END
             END
@@ -140,7 +145,8 @@ async function deleteDebt(userId, debtId) {
 }
 
 async function payDebt(userId, debtId, payData) {
-  const { amount, currency, accountId, date, categoryId } = payData;
+  const { amount, currency, accountId, date, categoryId, exchangeRate } = payData;
+  const paymentDate = resolveDateUtc(date);
 
   return await sequelize.transaction(async (t) => {
     const debt = await models.Debt.findOne({
@@ -159,8 +165,14 @@ async function payDebt(userId, debtId, payData) {
     });
     if (!account) throw new BadRequestError('Cuenta no válida o no pertenece al usuario.');
 
-    if (currency !== account.currency) {
-      throw new BadRequestError('La moneda del abono debe coincidir con la moneda de la cuenta.');
+    const paymentCurrency = String(currency || '').trim().toUpperCase();
+    const debtCurrency = String(debt.currency || '').trim().toUpperCase();
+    const accountCurrency = String(account.currency || '').trim().toUpperCase();
+    const debtAmount = Number(amount);
+    const parsedExchangeRate = exchangeRate != null ? Number(exchangeRate) : null;
+
+    if (paymentCurrency !== debtCurrency) {
+      throw new BadRequestError('La moneda del abono debe coincidir con la moneda original de la deuda.');
     }
 
     // Determinar tipo de categoría según tipo de deuda
@@ -211,24 +223,55 @@ async function payDebt(userId, debtId, payData) {
       }
     }
 
-    // Validar fondos si es gasto
-    if (isExpense && Number(account.balance) < Number(amount)) {
+    // Calcular conversión: la deuda se reduce con el monto original, pero la cuenta usa su moneda.
+    let convertedAmount = debtAmount;
+    let amountUsd = null;
+    let exchangeRateUsed = null;
+
+    if (debtCurrency === accountCurrency) {
+      convertedAmount = debtAmount;
+      if (accountCurrency === 'VES') {
+        const { getVesPerUsdByDate } = require('./transaction_service');
+        exchangeRateUsed = await getVesPerUsdByDate(paymentDate);
+        amountUsd = debtAmount / Number(exchangeRateUsed);
+      } else if (accountCurrency === 'USD') {
+        amountUsd = debtAmount;
+      }
+    } else if (debtCurrency === 'USD' && accountCurrency === 'VES') {
+      if (parsedExchangeRate != null && (!Number.isFinite(parsedExchangeRate) || parsedExchangeRate <= 0)) {
+        throw new BadRequestError('exchangeRate debe ser mayor a 0 para convertir USD -> VES.');
+      }
+      exchangeRateUsed = parsedExchangeRate != null ? parsedExchangeRate : await getUsdRateByDate(paymentDate);
+      convertedAmount = debtAmount * exchangeRateUsed;
+      amountUsd = debtAmount;
+    } else if (debtCurrency === 'VES' && accountCurrency === 'USD') {
+      if (parsedExchangeRate != null && (!Number.isFinite(parsedExchangeRate) || parsedExchangeRate <= 0)) {
+        throw new BadRequestError('exchangeRate debe ser mayor a 0 para convertir VES -> USD.');
+      }
+      exchangeRateUsed = parsedExchangeRate != null ? parsedExchangeRate : await getUsdRateByDate(paymentDate);
+      convertedAmount = debtAmount / exchangeRateUsed;
+      amountUsd = convertedAmount;
+    } else {
+      throw new BadRequestError(`Conversión no soportada entre deuda ${debtCurrency} y cuenta ${accountCurrency}.`);
+    }
+
+    // Validar fondos si es gasto, usando monto convertido en moneda de la cuenta.
+    if (isExpense && Number(account.balance) < Number(convertedAmount)) {
       throw new BadRequestError('Fondos insuficientes para completar el abono.');
     }
 
-    // Calcular conversión de moneda
-    let amountUsd = null;
-    let exchangeRateUsed = null;
-    if (currency === 'VES') {
+    // Compatibilidad histórica: si llega cuenta VES sin exchangeRate en el mismo flujo,
+    // usa la tasa BCV para asegurar amountUsd y exchangeRateUsed.
+    if (accountCurrency === 'VES' && exchangeRateUsed == null) {
       const { getVesPerUsdByDate } = require('./transaction_service');
-      exchangeRateUsed = await getVesPerUsdByDate(date);
-      amountUsd = Number(amount) / Number(exchangeRateUsed);
-    } else if (currency === 'USD') {
-      amountUsd = amount;
+      exchangeRateUsed = await getVesPerUsdByDate(paymentDate);
+      amountUsd = Number(convertedAmount) / Number(exchangeRateUsed);
+    } else if (accountCurrency === 'USD' && amountUsd == null) {
+      amountUsd = convertedAmount;
     }
 
     // Actualizar balance de la cuenta
-    const delta = isExpense ? -Number(amount) : Number(amount);
+    const delta = isExpense ? -Number(convertedAmount) : Number(convertedAmount);
     const newBalance = Number(account.balance) + delta;
     await account.update({ balance: newBalance }, { transaction: t });
 
@@ -239,11 +282,11 @@ async function payDebt(userId, debtId, payData) {
 
     const tx = await models.Transaction.create({
       description,
-      amount,
-      currency,
+      amount: convertedAmount,
+      currency: accountCurrency,
       amountUsd,
       exchangeRateUsed,
-      date,
+      date: paymentDate,
       status: 'completed',
       categoryId: resolvedCategoryId,
       accountId,
@@ -284,7 +327,7 @@ async function payDebt(userId, debtId, payData) {
 async function calcPaidAmount(debtId, debtCurrency, transaction = null) {
   const opts = {
     where: { debtId, status: 'completed' },
-    attributes: ['amount', 'currency', 'amountUsd'],
+    attributes: ['amount', 'currency', 'amountUsd', 'exchangeRateUsed'],
     raw: true,
   };
   if (transaction) opts.transaction = transaction;
@@ -299,12 +342,12 @@ async function calcPaidAmount(debtId, debtCurrency, transaction = null) {
         : Number(tx.amountUsd || 0);
       total += val;
     } else if (debtCurrency === 'VES') {
-      // Deuda en VES: usar amount si la tx es VES, o convertir inversamente si es USD
+      // Deuda en VES: usar amount si la tx es VES, o reconstruir VES desde USD con tasa guardada.
       if (tx.currency === 'VES') {
         total += Number(tx.amount);
+      } else if (tx.currency === 'USD' && tx.amountUsd && tx.exchangeRateUsed) {
+        total += Number(tx.amountUsd) * Number(tx.exchangeRateUsed);
       } else {
-        // tx en USD contra deuda en VES: no hay conversión inversa confiable, sumar 0
-        // (este caso no debería ocurrir en flujo normal)
         total += 0;
       }
     } else {

@@ -61,7 +61,7 @@
  *
  *     DebtPayRequest:
  *       type: object
- *       required: [amount, currency, accountId, date]
+ *       required: [amount, currency, accountId]
  *       properties:
  *         amount:
  *           type: number
@@ -70,12 +70,19 @@
  *         currency:
  *           type: string
  *           example: USD
+ *           description: Moneda original de la deuda (el amount siempre se interpreta en esta moneda).
  *         accountId:
  *           type: integer
  *         date:
  *           type: string
  *           format: date
  *           example: '2026-03-30'
+ *           description: Fecha del pago en formato YYYY-MM-DD. Si no se envía, se usa hoy en UTC.
+ *         exchangeRate:
+ *           type: number
+ *           format: float
+ *           minimum: 0.000001
+ *           description: Opcional. Si no se envía y hay cruce USD<->VES, se consulta automáticamente la tasa BCV por la fecha del pago.
  *         categoryId:
  *           type: integer
  *           nullable: true
@@ -446,7 +453,7 @@
  *             schema:
  *               $ref: '#/components/schemas/DebtPayResponse'
  *       400:
- *         description: Request inválido o fondos insuficientes
+ *         description: Request inválido, fondos insuficientes o tasa BCV no disponible sin exchangeRate manual
  *         content:
  *           application/json:
  *             schema:

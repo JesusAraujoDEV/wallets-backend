@@ -132,7 +132,7 @@ function computeDebtStatus(totalAmount, paidAmount) {
 async function calcDebtPaidAmountInTransaction(debtId, debtCurrency, transaction) {
   const rows = await models.Transaction.findAll({
     where: { debtId, status: 'completed' },
-    attributes: ['amount', 'currency', 'amountUsd'],
+    attributes: ['amount', 'currency', 'amountUsd', 'exchangeRateUsed'],
     raw: true,
     transaction,
   });
@@ -145,7 +145,13 @@ async function calcDebtPaidAmountInTransaction(debtId, debtCurrency, transaction
     }
 
     if (debtCurrency === 'VES') {
-      total += tx.currency === 'VES' ? Number(tx.amount) : 0;
+      if (tx.currency === 'VES') {
+        total += Number(tx.amount);
+      } else if (tx.currency === 'USD' && tx.amountUsd && tx.exchangeRateUsed) {
+        total += Number(tx.amountUsd) * Number(tx.exchangeRateUsed);
+      } else {
+        total += 0;
+      }
       continue;
     }
 
