@@ -198,6 +198,26 @@
  *                 items:
  *                   $ref: '#/components/schemas/Transaction'
  *               - $ref: '#/components/schemas/GroupedTransactionsResponse'
+ *
+ * /transactions/pending:
+ *   get:
+ *     summary: Listar todas las transacciones pendientes
+ *     tags: [Transactions]
+ *     responses:
+ *       200:
+ *         description: Lista de transacciones con status pending
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Transaction'
+ *       400:
+ *         description: Request inválido
+ *       401:
+ *         description: No autorizado
+ *       500:
+ *         description: Error del servidor
  *   post:
  *     summary: Crear una transacción simple
  *     tags: [Transactions]
@@ -256,6 +276,7 @@
  *   patch:
  *     summary: Confirmar transacción pendiente y aplicarla al balance con datos finales de pago
  *     tags: [Transactions]
+ *     description: Si la transacción tiene debtId vinculado, también recalcula y sincroniza el status de la deuda (pending, partial, paid).
  *     parameters:
  *       - in: path
  *         name: id

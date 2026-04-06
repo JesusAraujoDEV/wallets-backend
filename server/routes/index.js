@@ -63,6 +63,11 @@ function buildApiRouter() {
   } catch (e) { console.error('Failed to mount /debts router:', e.message); }
 
   try {
+    const agendaRouter = require('./agenda_router');
+    router.use('/agenda', agendaRouter);
+  } catch (e) { console.error('Failed to mount /agenda router:', e.message); }
+
+  try {
     const telegramRouter = require('./telegram_router');
     router.use('/telegram', telegramRouter);
   } catch (e) { console.error('Failed to mount /telegram router:', e.message); }

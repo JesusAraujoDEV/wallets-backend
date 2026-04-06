@@ -33,6 +33,20 @@ async function list(req, res, next) {
   } catch (e) { return next(e); }
 }
 
+async function pending(req, res, next) {
+  try {
+    const rows = await txService.getAllTransactions({
+      userId: req.user.id,
+      status: 'pending',
+    });
+    rows.sort((a, b) => (
+      String(a.date).localeCompare(String(b.date))
+      || Number(a.id) - Number(b.id)
+    ));
+    return res.json(rows);
+  } catch (e) { return next(e); }
+}
+
 async function create(req, res, next) {
   try {
     const result = await txService.createTransaction(req.user.id, req.body);
@@ -158,4 +172,4 @@ async function exportAll(req, res, next) {
   } catch (e) { return next(e); }
 }
 
-module.exports = { list, create, transfer, update, remove, confirm, exportTransfers, exportAll };
+module.exports = { list, pending, create, transfer, update, remove, confirm, exportTransfers, exportAll };

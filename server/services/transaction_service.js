@@ -51,8 +51,9 @@ function monthToRange(monthStr) {
 }
 
 async function getAllTransactions(filters) {
-  const { userId, q, type, categoryId, accountId, debtId, date, dateFrom, dateTo, month, analyticsBehavior, groupId } = filters;
+  const { userId, q, type, categoryId, accountId, debtId, date, dateFrom, dateTo, month, analyticsBehavior, groupId, status } = filters;
   const whereTx = { userId };
+  if (status) whereTx.status = status;
   const accountIds = parseIdFilter(accountId);
   const categoryIds = parseIdFilter(categoryId);
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
@@ -120,6 +121,61 @@ async function getAllTransactions(filters) {
     debtId: r.debtId || null,
     type: r.Category?.type,
   }));
+}
+
+function computeDebtStatus(totalAmount, paidAmount) {
+  if (paidAmount >= totalAmount) return 'paid';
+  if (paidAmount > 0) return 'partial';
+  return 'pending';
+}
+
+async function calcDebtPaidAmountInTransaction(debtId, debtCurrency, transaction) {
+  const rows = await models.Transaction.findAll({
+    where: { debtId, status: 'completed' },
+    attributes: ['amount', 'currency', 'amountUsd'],
+    raw: true,
+    transaction,
+  });
+
+  let total = 0;
+  for (const tx of rows) {
+    if (debtCurrency === 'USD') {
+      total += tx.currency === 'USD' ? Number(tx.amount) : Number(tx.amountUsd || 0);
+      continue;
+    }
+
+    if (debtCurrency === 'VES') {
+      total += tx.currency === 'VES' ? Number(tx.amount) : 0;
+      continue;
+    }
+
+    if (tx.currency === debtCurrency) {
+      total += Number(tx.amount);
+      continue;
+    }
+
+    total += Number(tx.amountUsd || 0);
+  }
+
+  return Math.round(total * 100) / 100;
+}
+
+async function syncLinkedDebtStatus(userId, debtId, transaction) {
+  if (!debtId) return;
+
+  const debt = await models.Debt.findOne({
+    where: { id: debtId, userId },
+    transaction,
+    lock: transaction.LOCK.UPDATE,
+  });
+  if (!debt) return;
+
+  const paidAmount = await calcDebtPaidAmountInTransaction(debt.id, debt.currency, transaction);
+  const newStatus = computeDebtStatus(Number(debt.totalAmount), paidAmount);
+
+  if (debt.status !== newStatus) {
+    await debt.update({ status: newStatus }, { transaction });
+  }
 }
 
 async function getGroupedTransactions(filters) {
@@ -741,6 +797,8 @@ async function confirmPendingTransaction(txId, userId, confirmPayload = {}) {
       amountUsd,
       exchangeRateUsed,
     }, { transaction: t });
+
+    await syncLinkedDebtStatus(userId, tx.debtId, t);
 
     return { tx };
   });

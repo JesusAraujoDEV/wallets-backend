@@ -11,6 +11,7 @@ const {
 
 router.use(protect);
 router.get('/', txCtrl.list);
+router.get('/pending', txCtrl.pending);
 
 router.post('/', validator(createTransactionSchema), txCtrl.create);
 
