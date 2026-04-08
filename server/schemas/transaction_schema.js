@@ -19,6 +19,7 @@ const transferSchema = Joi.object({
   fromAccountId: Joi.number().integer().positive().required(),
   toAccountId: Joi.number().integer().positive().required(),
   amount: Joi.number().positive().precision(2).required(),
+  destinationAmount: Joi.number().positive().precision(2).optional(),
   commission: Joi.number().min(0).precision(2).default(0),
   date: dateOnly.required(),
   concept: Joi.string().allow('', null).default(''),

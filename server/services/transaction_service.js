@@ -475,6 +475,7 @@ async function createTransfer(userId, payload) {
     fromAccountId,
     toAccountId,
     amount,
+    destinationAmount,
     commission = 0,
     date,
     concept = '',
@@ -483,22 +484,31 @@ async function createTransfer(userId, payload) {
   const fromId = parseInt(fromAccountId, 10);
   const toId = parseInt(toAccountId, 10);
   const amt = Number(amount);
+  const hasDestinationAmount = destinationAmount !== undefined
+    && destinationAmount !== null
+    && String(destinationAmount).trim() !== '';
+  const destinationAmt = hasDestinationAmount ? Number(destinationAmount) : null;
   const comm = Number(commission || 0);
-  if (!fromId || !toId || Number.isNaN(fromId) || Number.isNaN(toId)) throw new Error('Parámetros de cuentas inválidos.');
-  if (fromId === toId) throw new Error('La cuenta origen y destino deben ser diferentes.');
-  if (!amt || amt <= 0) throw new Error('El monto de la transferencia debe ser mayor a 0.');
-  if (!date) throw new Error('La fecha es requerida.');
-  if (comm < 0) throw new Error('La comisión no puede ser negativa.');
+  if (!fromId || !toId || Number.isNaN(fromId) || Number.isNaN(toId)) throw new BadRequestError('Parámetros de cuentas inválidos.');
+  if (fromId === toId) throw new BadRequestError('La cuenta origen y destino deben ser diferentes.');
+  if (!amt || amt <= 0) throw new BadRequestError('El monto de la transferencia debe ser mayor a 0.');
+  if (!date) throw new BadRequestError('La fecha es requerida.');
+  if (comm < 0) throw new BadRequestError('La comisión no puede ser negativa.');
+  if (hasDestinationAmount && (!Number.isFinite(destinationAmt) || destinationAmt <= 0)) {
+    throw new BadRequestError('destinationAmount debe ser un número mayor a 0.');
+  }
 
   return await sequelize.transaction(async (t) => {
     const fromAccount = await models.Account.findOne({ where: { id: fromId, userId }, transaction: t });
     const toAccount = await models.Account.findOne({ where: { id: toId, userId }, transaction: t });
-    if (!fromAccount) throw new Error('Cuenta origen no válida o no pertenece al usuario.');
-    if (!toAccount) throw new Error('Cuenta destino no válida o no pertenece al usuario.');
+    if (!fromAccount) throw new BadRequestError('Cuenta origen no válida o no pertenece al usuario.');
+    if (!toAccount) throw new BadRequestError('Cuenta destino no válida o no pertenece al usuario.');
 
-    if (fromAccount.currency !== toAccount.currency) {
-      throw new Error('Las transferencias entre cuentas de distinta moneda aún no están soportadas.');
+    const isCrossCurrency = fromAccount.currency !== toAccount.currency;
+    if (isCrossCurrency && !hasDestinationAmount) {
+      throw new BadRequestError('destinationAmount es requerido cuando las cuentas tienen monedas distintas.');
     }
+    const inAmount = isCrossCurrency ? destinationAmt : amt;
 
     // Categories: Transfer out (expense), Transfer in (income), Commission (expense)
     const excludeGroupId = await findCategoryGroupIdByBehavior(userId, 'exclude', t);
@@ -555,7 +565,7 @@ async function createTransfer(userId, payload) {
         userId,
         accountId: toAccount.id,
         categoryId: catIn.id,
-        amount: amt,
+        amount: inAmount,
         date,
         description: descIn,
         createdAt: { [Op.gte]: recentSince },
@@ -615,7 +625,7 @@ async function createTransfer(userId, payload) {
     // 2) Income to destination
     const inTx = await createTransactionInT(t, userId, {
       description: descIn,
-      amount: amt,
+      amount: inAmount,
       currency: toAccount.currency,
       date,
       status: 'completed',

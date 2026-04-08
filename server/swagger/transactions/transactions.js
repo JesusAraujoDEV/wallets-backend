@@ -67,6 +67,10 @@
  *           type: number
  *           format: float
  *           description: Monto a transferir
+ *         destinationAmount:
+ *           type: number
+ *           format: float
+ *           description: Monto que recibira la cuenta destino. Requerido cuando la cuenta origen y destino tienen monedas distintas.
  *         commission:
  *           type: number
  *           format: float
@@ -464,7 +468,8 @@
  *           example:
  *             fromAccountId: 1
  *             toAccountId: 2
- *             amount: 400
+ *             amount: 10
+ *             destinationAmount: 765
  *             commission: 10
  *             date: "2025-10-27"
  *             concept: "Pago tarjeta"
@@ -476,7 +481,7 @@
  *             schema:
  *               $ref: '#/components/schemas/TransferResponse'
  *       400:
- *         description: Error de validación (e.g., cuentas inválidas o monedas distintas)
+ *         description: Error de validación (e.g., cuentas inválidas o falta destinationAmount en transferencias multimoneda)
  *       401:
  *         description: No autorizado
  *       500:
