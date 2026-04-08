@@ -2,6 +2,15 @@ const axios = require('axios');
 const { Op, fn, col, where: sqWhere, literal } = require('sequelize');
 const { sequelize, models } = require('../libs/sequelize');
 const { BadRequestError } = require('../utils/errors');
+const { getUsdRateByDate } = require('./exchange_rate_service');
+
+function toCents(value) {
+  return Math.round(Number(value) * 100);
+}
+
+function fromCents(valueInCents) {
+  return Number((Number(valueInCents) / 100).toFixed(2));
+}
 
 function parseIdFilter(input) {
   if (!input) return null;
@@ -508,9 +517,32 @@ async function createTransfer(userId, payload) {
     if (isCrossCurrency && !hasDestinationAmount) {
       throw new BadRequestError('destinationAmount es requerido cuando las cuentas tienen monedas distintas.');
     }
-    const inAmount = isCrossCurrency ? destinationAmt : amt;
 
-    // Categories: Transfer out (expense), Transfer in (income), Commission (expense)
+    const shouldApplySpreadSplit = isCrossCurrency && hasDestinationAmount;
+    let officialBcvRate = null;
+    let expectedInAmount = null;
+    let spreadCents = 0;
+    if (shouldApplySpreadSplit) {
+      officialBcvRate = await getUsdRateByDate(date);
+      if (!Number.isFinite(officialBcvRate) || officialBcvRate <= 0) {
+        throw new BadRequestError('No se pudo obtener una tasa BCV válida para calcular la transferencia multimoneda.');
+      }
+
+      const expectedCents = toCents(amt * officialBcvRate);
+      const destinationCents = toCents(destinationAmt);
+      spreadCents = destinationCents - expectedCents;
+      expectedInAmount = fromCents(expectedCents);
+
+      if ((expectedCents + spreadCents) !== destinationCents) {
+        throw new BadRequestError('No se pudo cuadrar el split cambiario al centavo con destinationAmount.');
+      }
+    }
+
+    const inAmount = shouldApplySpreadSplit ? expectedInAmount : (isCrossCurrency ? destinationAmt : amt);
+    const spreadType = spreadCents > 0 ? 'gain' : (spreadCents < 0 ? 'loss' : 'none');
+    const spreadAbsAmount = fromCents(Math.abs(spreadCents));
+
+    // Categories: Transfer out (expense), Transfer in (income), FX gain/loss (destination), Commission (expense)
     const excludeGroupId = await findCategoryGroupIdByBehavior(userId, 'exclude', t);
     const includeGroupId = await findCategoryGroupIdByBehavior(userId, 'include', t);
     const catOut = await findOrCreateCategoryByName(userId, 'Transferencia (Salida)', 'gasto', t, {
@@ -534,6 +566,20 @@ async function createTransfer(userId, payload) {
       groupId: includeGroupId,
       isSystem: true,
     });
+    const catFxGain = await findOrCreateCategoryByName(userId, 'Ganancia Cambiaria', 'ingreso', t, {
+      icon: 'TrendingUp',
+      color: '#22c55e',
+      colorName: 'Green',
+      groupId: excludeGroupId,
+      isSystem: true,
+    });
+    const catFxLoss = await findOrCreateCategoryByName(userId, 'Pérdida Cambiaria', 'gasto', t, {
+      icon: 'TrendingDown',
+      color: '#ef4444',
+      colorName: 'Red',
+      groupId: excludeGroupId,
+      isSystem: true,
+    });
 
     // Build canonical descriptions
     const descOut = concept && concept.trim().length
@@ -542,6 +588,12 @@ async function createTransfer(userId, payload) {
     const descIn = concept && concept.trim().length
       ? `Transferencia desde ${fromAccount.name}: ${concept}`
       : `Transferencia desde ${fromAccount.name}`;
+    const descFxGain = concept && concept.trim().length
+      ? `Ganancia cambiaria (${fromAccount.currency}->${toAccount.currency}) desde ${fromAccount.name}: ${concept}`
+      : `Ganancia cambiaria (${fromAccount.currency}->${toAccount.currency}) desde ${fromAccount.name}`;
+    const descFxLoss = concept && concept.trim().length
+      ? `Pérdida cambiaria (${fromAccount.currency}->${toAccount.currency}) desde ${fromAccount.name}: ${concept}`
+      : `Pérdida cambiaria (${fromAccount.currency}->${toAccount.currency}) desde ${fromAccount.name}`;
     const descCom = `Comision de la transferencia de la cuenta ${fromAccount.name} a la cuenta ${toAccount.name} con concepto de: "${concept || ''}"`;
 
     // Idempotency/dedup: if an identical set was created very recently, return it instead of duplicating
@@ -574,6 +626,22 @@ async function createTransfer(userId, payload) {
       order: [['id', 'DESC']],
       transaction: t,
     });
+    const spreadCategoryId = spreadType === 'gain' ? catFxGain.id : (spreadType === 'loss' ? catFxLoss.id : null);
+    const spreadDescription = spreadType === 'gain' ? descFxGain : (spreadType === 'loss' ? descFxLoss : null);
+    const existingSpread = spreadType !== 'none' ? await models.Transaction.findOne({
+      where: {
+        userId,
+        accountId: toAccount.id,
+        categoryId: spreadCategoryId,
+        amount: spreadAbsAmount,
+        date,
+        description: spreadDescription,
+        createdAt: { [Op.gte]: recentSince },
+      },
+      include: [{ model: models.Category, attributes: ['type'] }],
+      order: [['id', 'DESC']],
+      transaction: t,
+    }) : null;
     const existingCom = comm > 0 ? await models.Transaction.findOne({
       where: {
         userId,
@@ -589,7 +657,8 @@ async function createTransfer(userId, payload) {
       transaction: t,
     }) : null;
 
-    if (existingOut && existingIn && ((comm > 0 && existingCom) || comm === 0)) {
+    const spreadMatches = (spreadType === 'none') || !!existingSpread;
+    if (existingOut && existingIn && spreadMatches && ((comm > 0 && existingCom) || comm === 0)) {
       const shape = (row) => ({
         id: row.id,
         description: row.description,
@@ -606,6 +675,11 @@ async function createTransfer(userId, payload) {
       return {
         outTx: shape(existingOut),
         inTx: shape(existingIn),
+        spreadTx: existingSpread ? shape(existingSpread) : null,
+        expectedAmount: shouldApplySpreadSplit ? expectedInAmount : inAmount,
+        spreadAmount: shouldApplySpreadSplit ? fromCents(spreadCents) : 0,
+        spreadType,
+        officialRateUsed: shouldApplySpreadSplit ? officialBcvRate : null,
         commissionTx: existingCom ? shape(existingCom) : null,
       };
     }
@@ -634,7 +708,42 @@ async function createTransfer(userId, payload) {
       accountId: toAccount.id,
     });
 
-    // 3) Commission expense (if any)
+    // 3) FX spread in destination account (if any)
+    let spreadTx = null;
+    if (spreadType === 'gain') {
+      spreadTx = await createTransactionInT(t, userId, {
+        description: descFxGain,
+        amount: spreadAbsAmount,
+        currency: toAccount.currency,
+        date,
+        status: 'completed',
+        applyBalance: true,
+        categoryId: catFxGain.id,
+        accountId: toAccount.id,
+      });
+    }
+
+    if (spreadType === 'loss') {
+      spreadTx = await createTransactionInT(t, userId, {
+        description: descFxLoss,
+        amount: spreadAbsAmount,
+        currency: toAccount.currency,
+        date,
+        status: 'completed',
+        applyBalance: true,
+        categoryId: catFxLoss.id,
+        accountId: toAccount.id,
+      });
+    }
+
+    const destinationNetCents = toCents(inTx.tx.amount)
+      + (spreadType === 'gain' ? toCents(spreadAbsAmount) : 0)
+      - (spreadType === 'loss' ? toCents(spreadAbsAmount) : 0);
+    if (shouldApplySpreadSplit && destinationNetCents !== toCents(destinationAmt)) {
+      throw new BadRequestError('No fue posible cuadrar el monto final en cuenta destino exactamente con destinationAmount.');
+    }
+
+    // 4) Commission expense (if any)
     let commissionTx = null;
     if (comm && comm > 0) {
       commissionTx = await createTransactionInT(t, userId, {
@@ -652,6 +761,11 @@ async function createTransfer(userId, payload) {
     return {
       outTx: outTx.tx,
       inTx: inTx.tx,
+      spreadTx: spreadTx ? spreadTx.tx : null,
+      expectedAmount: shouldApplySpreadSplit ? expectedInAmount : inAmount,
+      spreadAmount: shouldApplySpreadSplit ? fromCents(spreadCents) : 0,
+      spreadType,
+      officialRateUsed: shouldApplySpreadSplit ? officialBcvRate : null,
       commissionTx: commissionTx ? commissionTx.tx : null,
     };
   });

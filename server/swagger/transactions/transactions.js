@@ -70,7 +70,7 @@
  *         destinationAmount:
  *           type: number
  *           format: float
- *           description: Monto que recibira la cuenta destino. Requerido cuando la cuenta origen y destino tienen monedas distintas.
+ *           description: Monto final que recibirá la cuenta destino. En multimoneda se compara contra BCV para registrar spread de ganancia o pérdida.
  *         commission:
  *           type: number
  *           format: float
@@ -96,6 +96,27 @@
  *               $ref: '#/components/schemas/Transaction'
  *             inTx:
  *               $ref: '#/components/schemas/Transaction'
+ *             spreadTx:
+ *               nullable: true
+ *               allOf:
+ *                 - $ref: '#/components/schemas/Transaction'
+ *             expectedAmount:
+ *               type: number
+ *               format: float
+ *               description: Monto base esperado en destino calculado con la tasa BCV oficial para transferencias multimoneda.
+ *             spreadAmount:
+ *               type: number
+ *               format: float
+ *               description: Diferencia cambiaria firmada. Positiva indica ganancia, negativa indica pérdida.
+ *             spreadType:
+ *               type: string
+ *               enum: [gain, loss, none]
+ *               description: Tipo de diferencia cambiaria aplicada en destino.
+ *             officialRateUsed:
+ *               type: number
+ *               format: float
+ *               nullable: true
+ *               description: Tasa BCV usada para calcular expectedAmount en transferencias multimoneda.
  *             commissionTx:
  *               nullable: true
  *               allOf:
@@ -457,7 +478,7 @@
  *         description: Error del servidor
  * /transactions/transfer:
  *   post:
- *     summary: Crear una transferencia entre cuentas (genera 2 movimientos y 1 gasto de comisión opcional)
+ *     summary: Crear una transferencia entre cuentas (split multimoneda con ganancia/pérdida cambiaria y comisión opcional)
  *     tags: [Transactions]
  *     requestBody:
  *       required: true
@@ -475,13 +496,13 @@
  *             concept: "Pago tarjeta"
  *     responses:
  *       201:
- *         description: Transferencia creada (movimiento de salida, entrada y gasto por comisión)
+ *         description: Transferencia creada (salida, entrada base, spread cambiario opcional y comisión opcional)
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/TransferResponse'
  *       400:
- *         description: Error de validación (e.g., cuentas inválidas o falta destinationAmount en transferencias multimoneda)
+ *         description: Error de validación (e.g., cuentas inválidas, falta destinationAmount en multimoneda o falla BCV)
  *       401:
  *         description: No autorizado
  *       500:
