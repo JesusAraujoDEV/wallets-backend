@@ -57,7 +57,7 @@ async function create(req, res, next) {
 async function transfer(req, res, next) {
   try {
     const result = await txService.createTransfer(req.user.id, req.body);
-    return res.status(201).json({ ok: true, transfer: result });
+    return res.status(201).json({ ok: true, transfer: result, data: result.data || [] });
   } catch (e) { return next(e); }
 }
 

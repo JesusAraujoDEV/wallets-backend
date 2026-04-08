@@ -12,6 +12,50 @@ function fromCents(valueInCents) {
   return Number((Number(valueInCents) / 100).toFixed(2));
 }
 
+function shapeHydratedTransferTx(row) {
+  const category = row.Category || null;
+  return {
+    id: row.id,
+    description: row.description,
+    amount: row.amount,
+    currency: row.currency,
+    amountUsd: row.amountUsd,
+    exchangeRateUsed: row.exchangeRateUsed,
+    date: row.date,
+    status: row.status,
+    categoryId: row.categoryId,
+    accountId: row.accountId,
+    type: category?.type === 'ingreso' ? 'income' : 'expense',
+    category: category ? {
+      id: category.id,
+      name: category.name,
+      type: category.type,
+      icon: category.icon,
+      color: category.color,
+      colorName: category.colorName,
+    } : null,
+  };
+}
+
+async function getHydratedTransferTransactionsInT(t, userId, orderedIds) {
+  const filteredIds = orderedIds
+    .map((id) => Number(id))
+    .filter((id) => Number.isInteger(id) && id > 0);
+  if (!filteredIds.length) return [];
+
+  const rows = await models.Transaction.findAll({
+    where: { userId, id: { [Op.in]: filteredIds } },
+    include: [{
+      model: models.Category,
+      attributes: ['id', 'name', 'type', 'icon', 'color', 'colorName'],
+    }],
+    transaction: t,
+  });
+
+  const byId = new Map(rows.map((row) => [Number(row.id), shapeHydratedTransferTx(row)]));
+  return filteredIds.map((id) => byId.get(id)).filter(Boolean);
+}
+
 function parseIdFilter(input) {
   if (!input) return null;
   const parts = Array.isArray(input) ? input : String(input).split(',');
@@ -659,28 +703,22 @@ async function createTransfer(userId, payload) {
 
     const spreadMatches = (spreadType === 'none') || !!existingSpread;
     if (existingOut && existingIn && spreadMatches && ((comm > 0 && existingCom) || comm === 0)) {
-      const shape = (row) => ({
-        id: row.id,
-        description: row.description,
-        amount: row.amount,
-        currency: row.currency,
-        amountUsd: row.amountUsd,
-        exchangeRateUsed: row.exchangeRateUsed,
-        date: row.date,
-        status: row.status,
-        categoryId: row.categoryId,
-        accountId: row.accountId,
-        type: row.Category?.type === 'ingreso' ? 'income' : 'expense',
-      });
+      const hydratedData = await getHydratedTransferTransactionsInT(
+        t,
+        userId,
+        [existingOut.id, existingIn.id, existingSpread?.id, existingCom?.id]
+      );
+      const byId = new Map(hydratedData.map((tx) => [Number(tx.id), tx]));
       return {
-        outTx: shape(existingOut),
-        inTx: shape(existingIn),
-        spreadTx: existingSpread ? shape(existingSpread) : null,
+        outTx: byId.get(Number(existingOut.id)) || null,
+        inTx: byId.get(Number(existingIn.id)) || null,
+        spreadTx: existingSpread ? (byId.get(Number(existingSpread.id)) || null) : null,
         expectedAmount: shouldApplySpreadSplit ? expectedInAmount : inAmount,
         spreadAmount: shouldApplySpreadSplit ? fromCents(spreadCents) : 0,
         spreadType,
         officialRateUsed: shouldApplySpreadSplit ? officialBcvRate : null,
-        commissionTx: existingCom ? shape(existingCom) : null,
+        commissionTx: existingCom ? (byId.get(Number(existingCom.id)) || null) : null,
+        data: hydratedData,
       };
     }
 
@@ -758,15 +796,23 @@ async function createTransfer(userId, payload) {
       });
     }
 
+    const hydratedData = await getHydratedTransferTransactionsInT(
+      t,
+      userId,
+      [outTx.tx.id, inTx.tx.id, spreadTx?.tx?.id, commissionTx?.tx?.id]
+    );
+    const byId = new Map(hydratedData.map((tx) => [Number(tx.id), tx]));
+
     return {
-      outTx: outTx.tx,
-      inTx: inTx.tx,
-      spreadTx: spreadTx ? spreadTx.tx : null,
+      outTx: byId.get(Number(outTx.tx.id)) || null,
+      inTx: byId.get(Number(inTx.tx.id)) || null,
+      spreadTx: spreadTx ? (byId.get(Number(spreadTx.tx.id)) || null) : null,
       expectedAmount: shouldApplySpreadSplit ? expectedInAmount : inAmount,
       spreadAmount: shouldApplySpreadSplit ? fromCents(spreadCents) : 0,
       spreadType,
       officialRateUsed: shouldApplySpreadSplit ? officialBcvRate : null,
-      commissionTx: commissionTx ? commissionTx.tx : null,
+      commissionTx: commissionTx ? (byId.get(Number(commissionTx.tx.id)) || null) : null,
+      data: hydratedData,
     };
   });
 }

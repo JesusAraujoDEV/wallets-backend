@@ -40,6 +40,26 @@
  *           type: string
  *           enum: [ingreso, gasto]
  *           description: Tipo de la categoría asociada
+ *         category:
+ *           type: object
+ *           nullable: true
+ *           properties:
+ *             id:
+ *               type: integer
+ *             name:
+ *               type: string
+ *             type:
+ *               type: string
+ *               enum: [ingreso, gasto]
+ *             icon:
+ *               type: string
+ *               nullable: true
+ *             color:
+ *               type: string
+ *               nullable: true
+ *             colorName:
+ *               type: string
+ *               nullable: true
  *       required: [id, description, amount, currency, date, status, categoryId]
  *     GroupedTransactionsResponse:
  *       type: object
@@ -89,9 +109,19 @@
  *       properties:
  *         ok:
  *           type: boolean
+ *         data:
+ *           type: array
+ *           description: Transacciones de transferencia hidratadas con categoría para render inmediato en frontend.
+ *           items:
+ *             $ref: '#/components/schemas/Transaction'
  *         transfer:
  *           type: object
  *           properties:
+ *             data:
+ *               type: array
+ *               description: Transacciones de transferencia hidratadas con categoría para render inmediato en frontend.
+ *               items:
+ *                 $ref: '#/components/schemas/Transaction'
  *             outTx:
  *               $ref: '#/components/schemas/Transaction'
  *             inTx:
