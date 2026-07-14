@@ -50,6 +50,11 @@ const AccountSchema = {
     field: 'updated_at',
     defaultValue: Sequelize.NOW,
   },
+  deletedAt: {
+    allowNull: true,
+    type: DataTypes.DATE,
+    field: 'deleted_at',
+  },
 };
 
 class Account extends Model {
@@ -65,6 +70,7 @@ class Account extends Model {
       tableName: ACCOUNT_TABLE,
       modelName: 'Account',
       timestamps: true,
+      paranoid: true,
     };
   }
 }

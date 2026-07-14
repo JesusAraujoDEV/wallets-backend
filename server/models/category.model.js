@@ -72,6 +72,11 @@ const CategorySchema = {
     field: 'updated_at',
     defaultValue: Sequelize.NOW,
   },
+  deletedAt: {
+    allowNull: true,
+    type: DataTypes.DATE,
+    field: 'deleted_at',
+  },
 };
 
 class Category extends Model {
@@ -89,6 +94,7 @@ class Category extends Model {
       tableName: CATEGORY_TABLE,
       modelName: 'Category',
       timestamps: true,
+      paranoid: true,
     };
   }
 }

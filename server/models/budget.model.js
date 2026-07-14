@@ -64,6 +64,11 @@ const BudgetSchema = {
     field: 'updated_at',
     defaultValue: Sequelize.NOW,
   },
+  deletedAt: {
+    allowNull: true,
+    type: DataTypes.DATE,
+    field: 'deleted_at',
+  },
 };
 
 class Budget extends Model {
@@ -78,6 +83,7 @@ class Budget extends Model {
       tableName: BUDGET_TABLE,
       modelName: 'Budget',
       timestamps: true,
+      paranoid: true,
     };
   }
 }

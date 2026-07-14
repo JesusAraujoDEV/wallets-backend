@@ -109,6 +109,11 @@ const RecurringTransactionSchema = {
     field: 'updated_at',
     defaultValue: Sequelize.NOW,
   },
+  deletedAt: {
+    allowNull: true,
+    type: DataTypes.DATE,
+    field: 'deleted_at',
+  },
 };
 
 class RecurringTransaction extends Model {
@@ -125,6 +130,7 @@ class RecurringTransaction extends Model {
       tableName: RECURRING_TRANSACTION_TABLE,
       modelName: 'RecurringTransaction',
       timestamps: true,
+      paranoid: true,
     };
   }
 }

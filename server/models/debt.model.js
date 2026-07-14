@@ -74,6 +74,11 @@ const DebtSchema = {
     field: 'updated_at',
     defaultValue: Sequelize.NOW,
   },
+  deletedAt: {
+    allowNull: true,
+    type: DataTypes.DATE,
+    field: 'deleted_at',
+  },
 };
 
 class Debt extends Model {
@@ -90,6 +95,7 @@ class Debt extends Model {
       tableName: DEBT_TABLE,
       modelName: 'Debt',
       timestamps: true,
+      paranoid: true,
     };
   }
 }

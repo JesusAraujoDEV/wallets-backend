@@ -46,6 +46,11 @@ const CategoryGroupSchema = {
     field: 'updated_at',
     defaultValue: Sequelize.NOW,
   },
+  deletedAt: {
+    allowNull: true,
+    type: DataTypes.DATE,
+    field: 'deleted_at',
+  },
 };
 
 class CategoryGroup extends Model {
@@ -60,6 +65,7 @@ class CategoryGroup extends Model {
       tableName: CATEGORY_GROUP_TABLE,
       modelName: 'CategoryGroup',
       timestamps: true,
+      paranoid: true,
     };
   }
 }
