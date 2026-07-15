@@ -8,6 +8,7 @@ const { RecurringTransaction, RecurringTransactionSchema } = require('./recurrin
 const { Budget, BudgetSchema } = require('./budget.model');
 const { TelegramSession, TelegramSessionSchema } = require('./telegram_session.model');
 const { OtpCode, OtpCodeSchema } = require('./otp_code.model');
+const { ExchangeRate, ExchangeRateSchema } = require('./exchange_rate.model');
 
 function setupModels(sequelize) {
   // 1. Inicializar
@@ -21,6 +22,7 @@ function setupModels(sequelize) {
   Budget.init(BudgetSchema, Budget.config(sequelize));
   TelegramSession.init(TelegramSessionSchema, TelegramSession.config(sequelize));
   OtpCode.init(OtpCodeSchema, OtpCode.config(sequelize));
+  ExchangeRate.init(ExchangeRateSchema, ExchangeRate.config(sequelize));
 
   // 2. Asociar
   User.associate(sequelize.models);
@@ -33,6 +35,7 @@ function setupModels(sequelize) {
   Budget.associate(sequelize.models);
   TelegramSession.associate(sequelize.models);
   OtpCode.associate(sequelize.models);
+  ExchangeRate.associate(sequelize.models);
 
   return sequelize.models;
 }

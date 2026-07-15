@@ -1,68 +1,75 @@
 'use strict';
 
-const axios = require('axios');
+const { Op } = require('sequelize');
+const { models } = require('../libs/sequelize');
 const { BadRequestError } = require('../utils/errors');
-
-const BCV_API_BASE_URL = (process.env.BCV_API_BASE_URL || 'https://bcv-api.irissoftware.lat').replace(/\/$/, '');
-const BCV_API_TIMEOUT_MS = Number(process.env.BCV_API_TIMEOUT_MS || 5000);
-const CACHE_TTL_MS = Number(process.env.BCV_RATE_CACHE_TTL_MS || 10 * 60 * 1000);
-
-const usdRateCache = new Map();
-
-function resolveDateUtc(dateInput) {
-  if (dateInput && typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
-    return dateInput;
-  }
-
-  return new Date().toISOString().slice(0, 10);
-}
-
-function getCachedUsdRate(date) {
-  const cached = usdRateCache.get(date);
-  if (!cached) return null;
-  if (cached.expiresAt <= Date.now()) {
-    usdRateCache.delete(date);
-    return null;
-  }
-
-  return cached.value;
-}
-
-function setCachedUsdRate(date, value) {
-  usdRateCache.set(date, {
-    value,
-    expiresAt: Date.now() + CACHE_TTL_MS,
-  });
-}
+const { resolveDateUtc, fetchRateFromProvider, getRateWithFallback } = require('./exchange_rate_provider');
 
 async function getUsdRateByDate(dateInput) {
-  const date = resolveDateUtc(dateInput);
-  const cachedValue = getCachedUsdRate(date);
-  if (cachedValue != null) return cachedValue;
-
-  const url = `${BCV_API_BASE_URL}/api/v1/exchange-rates?date=${date}`;
-
-  try {
-    const response = await axios.get(url, {
-      timeout: BCV_API_TIMEOUT_MS,
-      headers: { accept: 'application/json' },
-    });
-
-    const usdRate = Number(response?.data?.usd_rate);
-    if (!Number.isFinite(usdRate) || usdRate <= 0) {
-      throw new Error('Invalid BCV response');
-    }
-
-    setCachedUsdRate(date, usdRate);
-    return usdRate;
-  } catch (_error) {
+  const rate = await getRateWithFallback(dateInput);
+  if (!rate) {
     throw new BadRequestError(
       'No se pudo obtener la tasa BCV para la fecha indicada. Envia exchangeRate manual para continuar.'
     );
   }
+  return rate.usdRate;
+}
+
+async function getRateForDate(dateInput) {
+  const target = resolveDateUtc(dateInput);
+  const rate = await getRateWithFallback(target);
+  if (!rate) {
+    throw new BadRequestError('No se pudo obtener la tasa BCV para la fecha indicada.');
+  }
+  const source = rate.date === target ? 'live' : 'fallback';
+  return { ...rate, source };
+}
+
+async function getCurrentRate() {
+  return getRateForDate(resolveDateUtc());
+}
+
+async function getRateHistory({ from, to }) {
+  const where = {};
+  if (from || to) {
+    where.date = {};
+    if (from) where.date[Op.gte] = from;
+    if (to) where.date[Op.lte] = to;
+  }
+
+  const rows = await models.ExchangeRate.findAll({
+    where,
+    order: [['date', 'ASC']],
+    raw: true,
+  });
+
+  return rows.map((r) => ({
+    date: r.date,
+    usdRate: Number(r.usdRate),
+    eurRate: Number(r.eurRate),
+    usdtRate: r.usdtRate === null ? null : Number(r.usdtRate),
+  }));
+}
+
+async function upsertTodayRate() {
+  const today = resolveDateUtc();
+  const rate = await fetchRateFromProvider(today);
+  if (!rate || rate.eurRate === null) return null;
+
+  const [row] = await models.ExchangeRate.upsert({
+    date: rate.date,
+    usdRate: rate.usdRate,
+    eurRate: rate.eurRate,
+    usdtRate: rate.usdtRate,
+  });
+  return row;
 }
 
 module.exports = {
   getUsdRateByDate,
+  getCurrentRate,
+  getRateForDate,
+  getRateHistory,
+  upsertTodayRate,
   resolveDateUtc,
 };

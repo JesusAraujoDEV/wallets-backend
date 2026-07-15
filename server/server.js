@@ -12,6 +12,7 @@ const { buildApiRouter } = require('./routes');
 const { swaggerSpec } = require('./swagger/spec');
 const { startRecurringWorkerCron } = require('./services/recurring_worker_service');
 const { startSoftDeletePurgeCron } = require('./services/soft_delete_purge_service');
+const { startExchangeRateWorkerCron } = require('./services/exchange_rate_worker_service');
 const { logErrors, boomErrorHandler, ormErrorHandler, errorHandler } = require('./middlewares/error_handler');
 const { requestLogger } = require('./middlewares/request_logger');
 const { requestOriginLogger } = require('./middlewares/request_origin_logger');
@@ -102,6 +103,8 @@ async function bootstrap() {
     console.log('Recurring worker scheduled at 00:01 daily');
     startSoftDeletePurgeCron();
     console.log('Soft-delete purge worker scheduled at 00:30 daily (90-day retention)');
+    startExchangeRateWorkerCron();
+    console.log('Exchange rate worker scheduled at 00:15 daily');
   } catch (e) {
     console.error('Sequelize connection error', e.message);
   }

@@ -72,6 +72,11 @@ function buildApiRouter() {
     router.use('/telegram', telegramRouter);
   } catch (e) { console.error('Failed to mount /telegram router:', e.message); }
 
+  try {
+    const exchangeRateRouter = require('./exchange_rate_router');
+    router.use('/exchange-rates', exchangeRateRouter);
+  } catch (e) { console.error('Failed to mount /exchange-rates router:', e.message); }
+
   return router;
 }
 
