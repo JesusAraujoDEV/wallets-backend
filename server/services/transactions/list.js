@@ -56,7 +56,7 @@ async function getAllTransactions(filters) {
   });
 
   const rows = await models.Transaction.findAll({
-    attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], 'date', 'status', ['category_id', 'categoryId'], ['account_id', 'accountId'], ['debt_id', 'debtId']],
+    attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], ['amount_usdt', 'amountUsdt'], 'date', 'status', ['category_id', 'categoryId'], ['account_id', 'accountId'], ['debt_id', 'debtId']],
     where: whereTx,
     include,
     order: [['date', 'DESC'], ['id', 'DESC']],
@@ -71,6 +71,7 @@ async function getAllTransactions(filters) {
     currency: r.currency,
     amountUsd: r.amountUsd,
     exchangeRateUsed: r.exchangeRateUsed,
+    amountUsdt: r.amountUsdt,
     date: r.date,
     status: r.status,
     categoryId: r.categoryId,

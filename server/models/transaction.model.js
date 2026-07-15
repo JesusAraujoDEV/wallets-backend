@@ -35,6 +35,16 @@ const TransactionSchema = {
     type: DataTypes.DECIMAL(10, 6),
     field: 'exchange_rate_used',
   },
+  usdtRateUsed: {
+    allowNull: true,
+    type: DataTypes.DECIMAL(15, 6),
+    field: 'usdt_rate_used',
+  },
+  amountUsdt: {
+    allowNull: true,
+    type: DataTypes.DECIMAL(15, 2),
+    field: 'amount_usdt',
+  },
   date: {
     allowNull: false,
     type: DataTypes.DATEONLY, // Importante: DATEONLY para YYYY-MM-DD

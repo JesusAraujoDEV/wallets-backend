@@ -90,7 +90,7 @@ async function getGroupedTransactions(filters) {
   if (days.length === 0 && dayRows.length > 0) days.push(dayRows[0].day);
 
   const items = await models.Transaction.findAll({
-    attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], 'date', 'status', ['category_id', 'categoryId'], ['account_id', 'accountId'], ['debt_id', 'debtId']],
+    attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], ['amount_usdt', 'amountUsdt'], 'date', 'status', ['category_id', 'categoryId'], ['account_id', 'accountId'], ['debt_id', 'debtId']],
     where: { ...whereTx, ...(days.length ? { date: { [Op.in]: days } } : {}) },
     include: buildCategoryInclude({ catWhere, behavior, attributes: ['type'] }),
     order: [['date', 'DESC'], ['id', 'DESC']],
@@ -123,6 +123,7 @@ async function getGroupedTransactions(filters) {
     currency: it.currency,
     amountUsd: it.amountUsd,
     exchangeRateUsed: it.exchangeRateUsed,
+    amountUsdt: it.amountUsdt,
     date: it.date,
     status: it.status,
     categoryId: it.categoryId,
