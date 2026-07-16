@@ -6,15 +6,28 @@ const app = express();
 
 // Middlewares
 // CORS configurado con whitelist desde env FRONTEND_URLS (CSV)
+// Soporta wildcards: *.dominio.com para permitir cualquier subdominio
 const parseCsv = (s) => (s ? s.split(',').map((x) => x.trim()).filter(Boolean) : []);
 const normalizeOrigin = (o) => (o ? o.replace(/\/$/, '').toLowerCase() : o);
-const FRONTEND_URLS = parseCsv(process.env.FRONTEND_URLS || 'http://localhost:8080').map(normalizeOrigin);
+const FRONTEND_URLS = parseCsv(process.env.FRONTEND_URLS || 'http://localhost:8080');
+
+function isOriginAllowed(origin) {
+    const normalized = normalizeOrigin(origin);
+    return FRONTEND_URLS.some((pattern) => {
+        const normalizedPattern = normalizeOrigin(pattern);
+        if (normalizedPattern.includes('*')) {
+            const regex = new RegExp('^' + normalizedPattern.replace(/\*/g, '[^.]+') + '$');
+            return regex.test(normalized);
+        }
+        return normalizedPattern === normalized;
+    });
+}
+
 const corsOptions = {
     origin: function (origin, callback) {
-        // Permitir herramientas como Postman (sin origin)
+        // Permitir herramientas como Postman/mobile apps (sin origin)
         if (!origin) return callback(null, true);
-        const isAllowed = FRONTEND_URLS.includes(normalizeOrigin(origin));
-        if (isAllowed) return callback(null, true);
+        if (isOriginAllowed(origin)) return callback(null, true);
         return callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
