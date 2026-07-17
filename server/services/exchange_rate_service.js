@@ -51,9 +51,8 @@ async function getRateHistory({ from, to }) {
   }));
 }
 
-async function upsertTodayRate() {
-  const today = resolveDateUtc();
-  const rate = await fetchRateFromProvider(today);
+async function upsertRateForDate(date) {
+  const rate = await fetchRateFromProvider(date);
   if (!rate || rate.eurRate === null) return null;
 
   const [row] = await models.ExchangeRate.upsert({
@@ -65,11 +64,44 @@ async function upsertTodayRate() {
   return row;
 }
 
+async function upsertTodayRate() {
+  return upsertRateForDate(resolveDateUtc());
+}
+
+// BCV sometimes publishes a day's rate late, or the worker misses a run (downtime, restart).
+// Re-checking the last few days closes that gap automatically on the next run, instead of
+// leaving a permanent hole that only a manual backfill would fix.
+async function syncRecentRates(daysBack = 5) {
+  const today = resolveDateUtc();
+  const existing = await models.ExchangeRate.findAll({
+    where: { date: { [Op.gte]: shiftDateUtc(today, -daysBack) } },
+    attributes: ['date'],
+    raw: true,
+  });
+  const existingDates = new Set(existing.map((r) => r.date));
+
+  const results = [];
+  for (let i = 0; i <= daysBack; i++) {
+    const date = shiftDateUtc(today, -i);
+    if (existingDates.has(date)) continue;
+    const row = await upsertRateForDate(date);
+    if (row) results.push(row);
+  }
+  return results;
+}
+
+function shiftDateUtc(dateStr, deltaDays) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + deltaDays);
+  return d.toISOString().slice(0, 10);
+}
+
 module.exports = {
   getUsdRateByDate,
   getCurrentRate,
   getRateForDate,
   getRateHistory,
   upsertTodayRate,
+  syncRecentRates,
   resolveDateUtc,
 };
