@@ -46,9 +46,13 @@ async function expenseVolatility(req, res, next) {
 async function comparativeMoM(req, res, next) {
   try {
     const userId = req.user.id;
-    const { date } = req.query;
+    const { date, current_from, current_to, previous_from, previous_to } = req.query;
     const groupId = parseOptionalGroupId(req.query.groupId);
-    const result = await stats.getComparativeMoM({ userId, date, groupId });
+    const result = await stats.getComparativeMoM({
+      userId, date, groupId,
+      currentFrom: current_from, currentTo: current_to,
+      previousFrom: previous_from, previousTo: previous_to,
+    });
     return res.json(result);
   } catch (e) { return next(e); }
 }
@@ -88,9 +92,13 @@ async function incomeVolatility(req, res, next) {
 async function comparativeMoMIncome(req, res, next) {
   try {
     const userId = req.user.id;
-    const { date } = req.query;
+    const { date, current_from, current_to, previous_from, previous_to } = req.query;
     const groupId = parseOptionalGroupId(req.query.groupId);
-    const result = await stats.getComparativeMoMIncome({ userId, date, groupId });
+    const result = await stats.getComparativeMoMIncome({
+      userId, date, groupId,
+      currentFrom: current_from, currentTo: current_to,
+      previousFrom: previous_from, previousTo: previous_to,
+    });
     return res.json(result);
   } catch (e) { return next(e); }
 }

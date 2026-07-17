@@ -228,12 +228,28 @@
  * /stats/comparative-mom:
  *   get:
  *     tags: [Stats]
- *     summary: Comparativa MTD vs MTD anterior por categoría y total
+ *     summary: Comparativa entre dos periodos (por defecto MTD vs MTD anterior) por categoría y total
  *     parameters:
  *       - in: query
  *         name: date
  *         schema: { type: string, example: '2025-03-15' }
- *         description: Fecha de referencia; por defecto hoy
+ *         description: Fecha de referencia para el modo MTD por defecto; ignorada si se pasan current_from/current_to
+ *       - in: query
+ *         name: current_from
+ *         schema: { type: string, example: '2025-03-01' }
+ *         description: Inicio del periodo actual (YYYY-MM-DD). Requiere current_to, previous_from y previous_to.
+ *       - in: query
+ *         name: current_to
+ *         schema: { type: string, example: '2025-03-15' }
+ *         description: Fin del periodo actual (YYYY-MM-DD)
+ *       - in: query
+ *         name: previous_from
+ *         schema: { type: string, example: '2024-03-01' }
+ *         description: Inicio del periodo de comparación (YYYY-MM-DD)
+ *       - in: query
+ *         name: previous_to
+ *         schema: { type: string, example: '2024-03-15' }
+ *         description: Fin del periodo de comparación (YYYY-MM-DD)
  *       - in: query
  *         name: groupId
  *         schema: { type: integer, minimum: 1, example: 10 }
@@ -247,8 +263,10 @@
  *               sample:
  *                 value:
  *                   summary:
- *                     current_period_name: "Marzo MTD (1-15)"
- *                     previous_period_name: "Febrero MTD (1-15)"
+ *                     current_period_start: "2025-03-01"
+ *                     current_period_end: "2025-03-15"
+ *                     previous_period_start: "2025-02-01"
+ *                     previous_period_end: "2025-02-15"
  *                     current_total: 520
  *                     previous_total: 480
  *                     total_delta_usd: 40
@@ -262,12 +280,28 @@
  * /stats/comparative-mom-income:
  *   get:
  *     tags: [Stats]
- *     summary: Comparativa MTD vs MTD anterior de ingresos por categoría y total
+ *     summary: Comparativa entre dos periodos (por defecto MTD vs MTD anterior) de ingresos por categoría y total
  *     parameters:
  *       - in: query
  *         name: date
  *         schema: { type: string, example: '2025-03-15' }
- *         description: Fecha de referencia; por defecto hoy
+ *         description: Fecha de referencia para el modo MTD por defecto; ignorada si se pasan current_from/current_to
+ *       - in: query
+ *         name: current_from
+ *         schema: { type: string, example: '2025-03-01' }
+ *         description: Inicio del periodo actual (YYYY-MM-DD). Requiere current_to, previous_from y previous_to.
+ *       - in: query
+ *         name: current_to
+ *         schema: { type: string, example: '2025-03-15' }
+ *         description: Fin del periodo actual (YYYY-MM-DD)
+ *       - in: query
+ *         name: previous_from
+ *         schema: { type: string, example: '2024-03-01' }
+ *         description: Inicio del periodo de comparación (YYYY-MM-DD)
+ *       - in: query
+ *         name: previous_to
+ *         schema: { type: string, example: '2024-03-15' }
+ *         description: Fin del periodo de comparación (YYYY-MM-DD)
  *       - in: query
  *         name: groupId
  *         schema: { type: integer, minimum: 1, example: 10 }
@@ -281,8 +315,10 @@
  *               sample:
  *                 value:
  *                   summary:
- *                     current_period_name: "Marzo MTD (1-15)"
- *                     previous_period_name: "Febrero MTD (1-15)"
+ *                     current_period_start: "2025-03-01"
+ *                     current_period_end: "2025-03-15"
+ *                     previous_period_start: "2025-02-01"
+ *                     previous_period_end: "2025-02-15"
  *                     current_total: 3200
  *                     previous_total: 3000
  *                     total_delta_usd: 200
