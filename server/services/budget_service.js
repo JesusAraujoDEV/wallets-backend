@@ -86,7 +86,24 @@ async function findDuplicateBudget({ userId, period, specificMonth, categoryId, 
   });
 }
 
+async function listBudgetableCategoryIds(userId) {
+  const categories = await models.Category.findAll({
+    attributes: ['id'],
+    where: { userId, type: 'gasto' },
+    include: [{ model: models.CategoryGroup, attributes: ['analyticsBehavior'], required: false }],
+  });
+
+  // A category with no group is not opted out of anything — only an explicit
+  // 'exclude' group (e.g. transfers) should hide it from budget tracking.
+  return categories
+    .filter((c) => !c.CategoryGroup || c.CategoryGroup.analyticsBehavior === 'include')
+    .map((c) => c.id);
+}
+
 async function aggregateSpentByCategory(userId, range) {
+  const categoryIds = await listBudgetableCategoryIds(userId);
+  if (categoryIds.length === 0) return { byCategory: new Map(), total: 0 };
+
   const rows = await models.Transaction.findAll({
     attributes: [
       [col('Transaction.category_id'), 'categoryId'],
@@ -95,19 +112,8 @@ async function aggregateSpentByCategory(userId, range) {
     where: {
       userId,
       date: { [Op.gte]: range.from, [Op.lte]: range.to },
+      categoryId: { [Op.in]: categoryIds },
     },
-    include: [{
-      model: models.Category,
-      attributes: [],
-      where: { type: 'gasto' },
-      required: true,
-      include: [{
-        model: models.CategoryGroup,
-        attributes: [],
-        where: { analyticsBehavior: 'include' },
-        required: true,
-      }],
-    }],
     group: [col('Transaction.category_id')],
     raw: true,
   });
