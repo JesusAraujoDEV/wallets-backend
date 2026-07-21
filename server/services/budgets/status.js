@@ -4,6 +4,15 @@ const { Op, fn, col } = require('sequelize');
 const { models } = require('../../libs/sequelize');
 const { BadRequestError } = require('../../utils/errors');
 const { toMonthRange, toYearRange, currentUtcMonth } = require('./period_helpers');
+const { getRateForDate, resolveDateUtc } = require('../exchange_rate_service');
+
+// `rate_source` is informational for 'bcv'/'binance'/'usd' (the budget's amount is
+// already a USD target in those cases). Only 'eur' means the amount was entered in
+// euros and must be converted before comparing against `spent`, which is always USD.
+function budgetedInUsd(amount, rateSource, eurUsdRate) {
+  if (rateSource !== 'eur') return amount;
+  return amount * eurUsdRate;
+}
 
 async function listBudgetableCategoryIds(userId) {
   const categories = await models.Category.findAll({
@@ -75,15 +84,19 @@ async function getBudgetStatus(userId, monthParam) {
 
   if (!budgets.length) return [];
 
-  const [monthlySpent, yearlySpent] = await Promise.all([
+  const needsEurRate = budgets.some((b) => b.rateSource === 'eur');
+  const [monthlySpent, yearlySpent, rate] = await Promise.all([
     aggregateSpentByCategory(userId, monthRange),
     aggregateSpentByCategory(userId, yearRange),
+    needsEurRate ? getRateForDate(resolveDateUtc()) : null,
   ]);
+  const eurUsdRate = rate ? rate.eurRate / rate.usdRate : null;
 
   return budgets.map((budget) => {
     const spentMap = budget.period === 'yearly' ? yearlySpent.byCategory : monthlySpent.byCategory;
     const totalSpent = budget.period === 'yearly' ? yearlySpent.total : monthlySpent.total;
-    const budgeted = Number(budget.amount || 0);
+    const budgetedRaw = Number(budget.amount || 0);
+    const budgeted = budgetedInUsd(budgetedRaw, budget.rateSource, eurUsdRate);
     const spent = budget.categoryId == null
       ? totalSpent
       : Number(spentMap.get(Number(budget.categoryId)) || 0);
@@ -99,6 +112,7 @@ async function getBudgetStatus(userId, monthParam) {
         color: budget.Category.color,
       } : null,
       budgeted,
+      budgeted_original: budgetedRaw !== budgeted ? budgetedRaw : null,
       spent,
       remaining,
       percentageUsed,
