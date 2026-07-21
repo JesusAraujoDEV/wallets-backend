@@ -44,6 +44,12 @@ function normalizeSpecificMonth(payload = {}) {
   return undefined;
 }
 
+function normalizeRateSource(payload = {}) {
+  if (Object.prototype.hasOwnProperty.call(payload, 'rate_source')) return payload.rate_source;
+  if (Object.prototype.hasOwnProperty.call(payload, 'rateSource')) return payload.rateSource;
+  return undefined;
+}
+
 function assertValidPeriod(period) {
   if (!ALLOWED_PERIODS.has(period)) {
     throw new BadRequestError('period debe ser monthly, yearly o one_time.');
@@ -65,6 +71,7 @@ function shapeBudgetOutput(budget) {
     currency: budget.currency,
     period: budget.period,
     specific_month: budget.specificMonth ?? null,
+    rate_source: budget.rateSource ?? null,
   };
 }
 
@@ -171,6 +178,7 @@ async function createBudget(userId, payload) {
     currency: payload.currency || 'USD',
     period,
     specificMonth: period === 'one_time' ? specificMonth : null,
+    rateSource: normalizeRateSource(payload) ?? null,
   });
 
   return shapeBudgetOutput(created);
@@ -183,7 +191,7 @@ async function listBudgets(userId, query = {}) {
 
   const rows = await models.Budget.findAll({
     where,
-    attributes: ['id', 'userId', 'categoryId', 'amount', 'currency', 'period', 'specificMonth'],
+    attributes: ['id', 'userId', 'categoryId', 'amount', 'currency', 'period', 'specificMonth', 'rateSource'],
     include: [{
       model: models.Category,
       attributes: ['id', 'name', 'icon', 'color'],
@@ -206,7 +214,7 @@ async function listBudgets(userId, query = {}) {
 async function updateBudget(userId, budgetId, payload) {
   const budget = await models.Budget.findOne({
     where: { id: budgetId, userId },
-    attributes: ['id', 'userId', 'categoryId', 'amount', 'currency', 'period', 'specificMonth'],
+    attributes: ['id', 'userId', 'categoryId', 'amount', 'currency', 'period', 'specificMonth', 'rateSource'],
   });
 
   if (!budget) throw new NotFoundError('Presupuesto no encontrado.');
@@ -244,6 +252,11 @@ async function updateBudget(userId, budgetId, payload) {
     specificMonth: period === 'one_time' ? specificMonth : null,
   };
 
+  const rateSourceInput = normalizeRateSource(payload);
+  if (rateSourceInput !== undefined) {
+    updates.rateSource = rateSourceInput;
+  }
+
   if (payload.categoryId !== undefined) {
     updates.categoryId = payload.categoryId;
   }
@@ -276,7 +289,7 @@ async function getBudgetStatus(userId, monthParam) {
         { period: 'one_time', specificMonth: month },
       ],
     },
-    attributes: ['id', 'categoryId', 'amount', 'currency', 'period', 'specificMonth'],
+    attributes: ['id', 'categoryId', 'amount', 'currency', 'period', 'specificMonth', 'rateSource'],
     include: [{
       model: models.Category,
       attributes: ['id', 'name', 'icon', 'color'],
@@ -317,6 +330,7 @@ async function getBudgetStatus(userId, monthParam) {
       currency: budget.currency,
       period: budget.period,
       specific_month: budget.specificMonth ?? null,
+      rate_source: budget.rateSource ?? null,
     };
   });
 }

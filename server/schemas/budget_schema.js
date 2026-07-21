@@ -10,6 +10,7 @@ const specificMonthSchema = Joi.string().pattern(/^\d{4}-(0[1-9]|1[0-2])$/).mess
 });
 
 const periodSchema = Joi.string().valid('monthly', 'yearly', 'one_time');
+const rateSourceSchema = Joi.string().valid('bcv', 'binance', 'eur', 'usd').allow(null);
 
 const createBudgetSchema = Joi.object({
   categoryId: Joi.number().integer().positive().allow(null).optional(),
@@ -21,6 +22,7 @@ const createBudgetSchema = Joi.object({
     then: specificMonthSchema.required(),
     otherwise: Joi.alternatives().try(specificMonthSchema, Joi.valid(null)).optional(),
   }),
+  rate_source: rateSourceSchema.optional(),
 }).unknown(false);
 
 const listBudgetsQuerySchema = Joi.object({
@@ -37,6 +39,7 @@ const updateBudgetSchema = Joi.object({
     then: specificMonthSchema.required(),
     otherwise: Joi.alternatives().try(specificMonthSchema, Joi.valid(null)).optional(),
   }),
+  rate_source: rateSourceSchema.optional(),
 }).unknown(false);
 
 const budgetIdParamSchema = Joi.object({

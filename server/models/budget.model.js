@@ -52,6 +52,11 @@ const BudgetSchema = {
     type: DataTypes.STRING(7),
     field: 'specific_month',
   },
+  rateSource: {
+    allowNull: true,
+    type: DataTypes.STRING(20),
+    field: 'rate_source',
+  },
   createdAt: {
     allowNull: false,
     type: DataTypes.DATE,
