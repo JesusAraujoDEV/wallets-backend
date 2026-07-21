@@ -313,7 +313,7 @@ async function getBudgetStatus(userId, monthParam) {
       ? totalSpent
       : Number(spentMap.get(Number(budget.categoryId)) || 0);
     const remaining = budgeted - spent;
-    const percentageUsed = budgeted > 0 ? Number((spent / budgeted).toFixed(6)) : 0;
+    const percentageUsed = budgeted > 0 ? Number(((spent / budgeted) * 100).toFixed(2)) : 0;
 
     return {
       id: budget.id,

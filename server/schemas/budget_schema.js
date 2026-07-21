@@ -31,6 +31,7 @@ const listBudgetsQuerySchema = Joi.object({
 });
 
 const updateBudgetSchema = Joi.object({
+  categoryId: Joi.number().integer().positive().allow(null).optional(),
   amount: Joi.number().positive().required(),
   currency: Joi.string().max(10).optional(),
   period: periodSchema.required(),
