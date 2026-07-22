@@ -1,0 +1,21 @@
+# 2026-07-22 — Cross-currency transfer direction bug and analytics-include false-exclusion
+
+## What changed
+`createTransfer`'s spread-split calculation (`services/transactions/transfer.js`) always did `amount * officialBcvRate`, which is only correct for USD→VES; a VES→USD transfer now divides by the rate instead. Separately, every endpoint that filters by `analyticsBehavior` (`/transactions`, `/summary/*`, monthly summaries) required an INNER JOIN to a `CategoryGroup` row when the default `analyticsBehavior=include` was applied, silently dropping any transaction whose category has no group at all. Extracted the fix into a new `services/transactions/analytics_group_filter.js` (category-id filter computed via a small pre-query instead of a fragile LEFT-JOIN-in-ON-clause) and wired it into `list.js`, `summary.js`, `monthly_summary.js`. Also patched `getRateHistory` to fall back to the live/cached current rate for today when the sync worker hasn't persisted it yet.
+
+## Why
+Reconciling real transactions for the owner surfaced both bugs live: a VES→USD transfer (54,600 Bs → $65) produced a ~$40,252,758 income leg plus an offsetting ~$40,252,693 "Pérdida Cambiaria" expense leg (net correct by coincidence, ledger corrupted in the process). Separately, the dashboard's "Monthly Expenses" card showed $0.02 against a real ~$14,883 all-time expense total — traced to almost every personal expense category (Gym, Comida, Gasolina, etc.) having `groupId: null`, which the old `required: true` CategoryGroup join treated as "not explicitly included" instead of "not excluded."
+
+## How
+- `transfer.js`: `computeSpreadSplit` now takes `fromCurrency`/`toCurrency` and picks `amt / rate` vs `amt * rate` based on which side is VES (only VES/USD account currencies exist, confirmed via `schemas/account_schema.js`).
+- `analytics_group_filter.js`: `resolveAnalyticsCategoryFilter({userId, behavior, groupId})` resolves the requested behavior into an explicit `{op: 'in'|'notIn', categoryIds}` — for the default `include` case, only categories belonging to a group explicitly marked `exclude` are computed and then `notIn`-filtered; ungrouped categories pass through untouched. `applyAnalyticsCategoryFilter` merges that into an existing `where.categoryId`, intersecting via `Op.and` if one was already set. This replaced the `CategoryGroup` sub-include entirely in all three call sites — simpler to reason about than getting LEFT JOIN + ON-clause semantics right in Sequelize.
+- `exchange_rate_service.js`: `getRateHistory` now calls `getRateForDate(today)` and appends it (only if `source === 'live'`, i.e. not itself a stale fallback) when the DB has no row for today and the requested range covers it.
+- Verified live against production: recreated the VES→USD transfer post-fix (65 USD in, no spread transaction) and confirmed `/summary/balance` expense total moved from $0.16 (all-time) to a total consistent with summing every expense transaction's `amountUsd` individually (~$14,883).
+
+## Promoted knowledge
+None — these are correctness fixes to existing patterns (transfer spread calc, analytics filtering, rate sync), no new architecture. The `analytics_group_filter.js` module is the new canonical way to apply analytics include/exclude filtering; any future endpoint needing it should reuse `resolveAnalyticsCategoryFilter`/`applyAnalyticsCategoryFilter` rather than re-adding a `CategoryGroup` include.
+
+## Follow-ups
+- [ ] The stats module (`services/stats/*.js`, 9 files) has its own duplicate of the same broken pattern via `buildIncludedGroupWhere` in `services/stats/shared.js` — not fixed here, out of scope for the reported dashboard bug, but likely affects spending heatmaps / MoM comparatives / forecasts the same way.
+- [ ] `getAllTransactions` returns an empty list when called from inside `getTransactionsSummary` (`/summary/income`, `/summary/expense` — the `transactions_income`/`transactions_expense` arrays) even though the aggregate totals now compute correctly; not root-caused, doesn't affect the dashboard (which only reads `/summary/balance`'s totals, not the item lists).
+- [ ] No deploy pipeline in this repo (no `.github/workflows`) — this fix needs a manual `git pull` + restart on the VPS to reach production; verification against the live API is still pending that deploy.
