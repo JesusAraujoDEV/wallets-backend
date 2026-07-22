@@ -2,8 +2,9 @@ const { Op, col, where: sqWhere } = require('sequelize');
 const { models } = require('../../libs/sequelize');
 const {
   parseIdFilter, parseDebtIdFilter, monthToRange,
-  parseAnalyticsBehavior, parseSinglePositiveId, buildCategoryGroupWhere,
+  parseAnalyticsBehavior, parseSinglePositiveId,
 } = require('./shared');
+const { resolveAnalyticsCategoryFilter, applyAnalyticsCategoryFilter } = require('./analytics_group_filter');
 
 async function getAllTransactions(filters) {
   const { userId, q, type, categoryId, accountId, debtId, date, dateFrom, dateTo, month, analyticsBehavior, groupId, status } = filters;
@@ -32,7 +33,8 @@ async function getAllTransactions(filters) {
   if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
   const behavior = parseAnalyticsBehavior(analyticsBehavior);
   const parsedGroupId = parseSinglePositiveId(groupId);
-  const categoryGroupWhere = buildCategoryGroupWhere(behavior, parsedGroupId);
+  const analyticsFilter = await resolveAnalyticsCategoryFilter({ userId, behavior, groupId: parsedGroupId });
+  applyAnalyticsCategoryFilter(whereTx, analyticsFilter);
   if (q) {
     whereTx[Op.or] = [
       { description: { [Op.iLike]: `%${q}%` } },
@@ -44,15 +46,8 @@ async function getAllTransactions(filters) {
     model: models.Category,
     attributes: ['type', 'name'],
     where: Object.keys(catWhere).length ? catWhere : undefined,
-    required: Object.keys(catWhere).length > 0 || behavior !== null || parsedGroupId !== null,
+    required: Object.keys(catWhere).length > 0,
     paranoid: false,
-    include: [{
-      model: models.CategoryGroup,
-      attributes: [],
-      where: categoryGroupWhere,
-      required: !!categoryGroupWhere,
-      paranoid: false,
-    }],
   });
 
   const rows = await models.Transaction.findAll({

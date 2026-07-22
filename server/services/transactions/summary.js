@@ -1,9 +1,10 @@
 const { Op, fn, col } = require('sequelize');
 const { models } = require('../../libs/sequelize');
 const {
-  parseAnalyticsBehavior, parseSinglePositiveId, buildCategoryGroupWhere,
+  parseAnalyticsBehavior, parseSinglePositiveId,
   buildTxFilterWhere, parseIdFilter,
 } = require('./shared');
+const { resolveAnalyticsCategoryFilter, applyAnalyticsCategoryFilter } = require('./analytics_group_filter');
 const { getAllTransactions } = require('./list');
 const { getVesPerUsdByDate } = require('./exchange');
 
@@ -14,7 +15,8 @@ async function getTransactionsSummary({ userId, type, q, categoryId, accountId, 
   if (type) catWhere.type = type === 'income' ? 'ingreso' : 'gasto';
   const behavior = parseAnalyticsBehavior(analyticsBehavior);
   const parsedGroupId = parseSinglePositiveId(groupId);
-  const categoryGroupWhere = buildCategoryGroupWhere(behavior, parsedGroupId);
+  const analyticsFilter = await resolveAnalyticsCategoryFilter({ userId, behavior, groupId: parsedGroupId });
+  applyAnalyticsCategoryFilter(whereTx, analyticsFilter);
 
   const sumRow = await models.Transaction.findOne({
     attributes: [[fn('COALESCE', fn('SUM', col('Transaction.amount_usd')), 0), 'totalUsd']],
@@ -23,15 +25,8 @@ async function getTransactionsSummary({ userId, type, q, categoryId, accountId, 
       model: models.Category,
       attributes: [],
       where: Object.keys(catWhere).length ? catWhere : undefined,
-      required: Object.keys(catWhere).length > 0 || behavior !== null || parsedGroupId !== null,
+      required: Object.keys(catWhere).length > 0,
       paranoid: false,
-      include: [{
-        model: models.CategoryGroup,
-        attributes: [],
-        where: categoryGroupWhere,
-        required: !!categoryGroupWhere,
-        paranoid: false,
-      }],
     }],
     raw: true,
   });

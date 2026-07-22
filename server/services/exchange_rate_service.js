@@ -43,12 +43,26 @@ async function getRateHistory({ from, to }) {
     raw: true,
   });
 
-  return rows.map((r) => ({
+  const mapped = rows.map((r) => ({
     date: r.date,
     usdRate: Number(r.usdRate),
     eurRate: Number(r.eurRate),
     usdtRate: r.usdtRate === null ? null : Number(r.usdtRate),
   }));
+
+  // BCV can publish today's rate after the last sync-worker run (see syncRecentRates):
+  // patch it in from the live/cached source so the table doesn't lag behind /current.
+  const today = resolveDateUtc();
+  const requestedRange = (!to || to >= today) && (!from || from <= today);
+  const alreadyHasToday = mapped.some((r) => r.date === today);
+  if (requestedRange && !alreadyHasToday) {
+    const todayRate = await getRateForDate(today).catch(() => null);
+    if (todayRate && todayRate.source === 'live') {
+      mapped.push({ date: today, usdRate: Number(todayRate.usdRate), eurRate: Number(todayRate.eurRate), usdtRate: todayRate.usdtRate == null ? null : Number(todayRate.usdtRate) });
+    }
+  }
+
+  return mapped;
 }
 
 async function upsertRateForDate(date) {

@@ -53,13 +53,6 @@ function parseSinglePositiveId(input) {
   return parsed;
 }
 
-function buildCategoryGroupWhere(behavior, groupId) {
-  const where = {};
-  if (behavior) where.analyticsBehavior = behavior;
-  if (groupId !== null) where.id = groupId;
-  return Object.keys(where).length ? where : undefined;
-}
-
 function buildTxFilterWhere({ userId, q, categoryId, accountId, debtId, date, dateFrom, dateTo, month }) {
   const whereTx = { userId };
   const accountIds = parseIdFilter(accountId);
@@ -130,7 +123,6 @@ module.exports = {
   monthToRange,
   parseAnalyticsBehavior,
   parseSinglePositiveId,
-  buildCategoryGroupWhere,
   buildTxFilterWhere,
   parseMonthStr,
   monthRangeInclusive,

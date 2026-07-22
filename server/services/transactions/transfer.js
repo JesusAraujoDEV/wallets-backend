@@ -19,7 +19,7 @@ function validateTransferInput({ fromId, toId, amt, date, comm, hasDestinationAm
   }
 }
 
-async function computeSpreadSplit({ isCrossCurrency, hasDestinationAmount, amt, destinationAmt, date }) {
+async function computeSpreadSplit({ isCrossCurrency, hasDestinationAmount, amt, destinationAmt, date, fromCurrency, toCurrency }) {
   const shouldApplySpreadSplit = isCrossCurrency && hasDestinationAmount;
   if (!shouldApplySpreadSplit) return { shouldApplySpreadSplit, officialBcvRate: null, expectedInAmount: null, spreadCents: 0 };
 
@@ -28,7 +28,10 @@ async function computeSpreadSplit({ isCrossCurrency, hasDestinationAmount, amt, 
     throw new BadRequestError('No se pudo obtener una tasa BCV válida para calcular la transferencia multimoneda.');
   }
 
-  const expectedCents = toCents(amt * officialBcvRate);
+  // officialBcvRate is Bs per USD. Direction depends on which side is VES:
+  // VES -> USD divides by the rate, USD -> VES multiplies by it.
+  const expectedAmount = fromCurrency === 'VES' ? (amt / officialBcvRate) : (amt * officialBcvRate);
+  const expectedCents = toCents(expectedAmount);
   const destinationCents = toCents(destinationAmt);
   const spreadCents = destinationCents - expectedCents;
   const expectedInAmount = fromCents(expectedCents);
@@ -78,6 +81,7 @@ async function createTransfer(userId, payload) {
 
     const { shouldApplySpreadSplit, officialBcvRate, expectedInAmount, spreadCents } = await computeSpreadSplit({
       isCrossCurrency, hasDestinationAmount, amt, destinationAmt, date,
+      fromCurrency: fromAccount.currency, toCurrency: toAccount.currency,
     });
     const inAmount = shouldApplySpreadSplit ? expectedInAmount : (isCrossCurrency ? destinationAmt : amt);
     const spreadType = spreadCents > 0 ? 'gain' : (spreadCents < 0 ? 'loss' : 'none');
