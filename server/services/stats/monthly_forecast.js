@@ -1,6 +1,7 @@
 const { Op, fn, col } = require('sequelize');
 const { models } = require('../../libs/sequelize');
-const { parseIdFilter, buildIncludedGroupWhere } = require('./shared');
+const { parseIdFilter, parseSinglePositiveId } = require('./shared');
+const { resolveAnalyticsCategoryFilter, applyAnalyticsCategoryFilter } = require('../transactions/analytics_group_filter');
 
 async function getMonthlyForecast({ userId, accountId, date, budgetTotal, groupId }) {
   const now = date ? new Date(date) : new Date();
@@ -15,6 +16,9 @@ async function getMonthlyForecast({ userId, accountId, date, budgetTotal, groupI
   const whereTx = { userId, status: 'completed', date: { [Op.gte]: fmt(start), [Op.lte]: fmt(end) } };
   const accountIds = parseIdFilter(accountId);
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
+  // ponytail: behavior hardcoded 'include' — this endpoint has no include/exclude toggle
+  const analyticsFilter = await resolveAnalyticsCategoryFilter({ userId, behavior: 'include', groupId: parseSinglePositiveId(groupId) });
+  applyAnalyticsCategoryFilter(whereTx, analyticsFilter);
 
   const row = await models.Transaction.findOne({
     attributes: [[fn('COALESCE', fn('SUM', col('Transaction.amount_usd')), 0), 'sum_usd']],
@@ -25,7 +29,6 @@ async function getMonthlyForecast({ userId, accountId, date, budgetTotal, groupI
       where: { type: 'gasto' },
       required: true,
       paranoid: false,
-      include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true, paranoid: false }],
     }],
     raw: true,
   });

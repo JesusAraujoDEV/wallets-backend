@@ -1,6 +1,7 @@
 const { Op, fn, col, literal } = require('sequelize');
 const { models } = require('../../libs/sequelize');
-const { parseIdFilter, assertDateStr, formatPeriod, buildIncludedGroupWhere } = require('./shared');
+const { parseIdFilter, assertDateStr, formatPeriod, parseSinglePositiveId } = require('./shared');
+const { resolveAnalyticsCategoryFilter, applyAnalyticsCategoryFilter } = require('../transactions/analytics_group_filter');
 
 async function getNetCashFlow({ userId, fromDate, toDate, timeUnit = 'month', accountId, groupId }) {
   const from = assertDateStr(fromDate);
@@ -10,6 +11,9 @@ async function getNetCashFlow({ userId, fromDate, toDate, timeUnit = 'month', ac
 
   const whereTx = { userId, status: 'completed', date: { [Op.gte]: from, [Op.lte]: to } };
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
+  // ponytail: behavior hardcoded 'include' — this endpoint has no include/exclude toggle
+  const analyticsFilter = await resolveAnalyticsCategoryFilter({ userId, behavior: 'include', groupId: parseSinglePositiveId(groupId) });
+  applyAnalyticsCategoryFilter(whereTx, analyticsFilter);
 
   // Aggregate in one pass with CASE
   const periodFn = fn('date_trunc', literal(`'${unit}'`), col('Transaction.date'));
@@ -25,7 +29,6 @@ async function getNetCashFlow({ userId, fromDate, toDate, timeUnit = 'month', ac
       attributes: [],
       required: true,
       paranoid: false,
-      include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true, paranoid: false }],
     }],
     group: [periodFn],
     order: [[periodFn, 'ASC']],

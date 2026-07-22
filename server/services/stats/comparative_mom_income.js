@@ -1,6 +1,7 @@
 const { Op, fn, col } = require('sequelize');
 const { models } = require('../../libs/sequelize');
-const { buildIncludedGroupWhere, firstOfMonth, daysInMonth } = require('./shared');
+const { parseSinglePositiveId, firstOfMonth, daysInMonth } = require('./shared');
+const { resolveAnalyticsCategoryFilter, applyAnalyticsCategoryFilter } = require('../transactions/analytics_group_filter');
 
 async function getComparativeMoMIncome({ userId, date, groupId, currentFrom, currentTo, previousFrom, previousTo }) {
   const fmt = (d) => d.toISOString().slice(0, 10);
@@ -25,6 +26,10 @@ async function getComparativeMoMIncome({ userId, date, groupId, currentFrom, cur
 
   const curWhere = { userId, status: 'completed', date: { [Op.gte]: fmt(currentStart), [Op.lte]: fmt(currentEnd) } };
   const prevWhere = { userId, status: 'completed', date: { [Op.gte]: fmt(prevStart), [Op.lte]: fmt(prevEndMTD) } };
+  // ponytail: behavior hardcoded 'include' — this endpoint has no include/exclude toggle
+  const analyticsFilter = await resolveAnalyticsCategoryFilter({ userId, behavior: 'include', groupId: parseSinglePositiveId(groupId) });
+  applyAnalyticsCategoryFilter(curWhere, analyticsFilter);
+  applyAnalyticsCategoryFilter(prevWhere, analyticsFilter);
 
   const [curCats, prevCats] = await Promise.all([
     models.Transaction.findAll({
@@ -36,7 +41,6 @@ async function getComparativeMoMIncome({ userId, date, groupId, currentFrom, cur
         where: { type: 'ingreso' },
         required: true,
         paranoid: false,
-        include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true, paranoid: false }],
       }],
       group: [col('Category.name')], raw: true,
     }),
@@ -49,7 +53,6 @@ async function getComparativeMoMIncome({ userId, date, groupId, currentFrom, cur
         where: { type: 'ingreso' },
         required: true,
         paranoid: false,
-        include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true, paranoid: false }],
       }],
       group: [col('Category.name')], raw: true,
     })

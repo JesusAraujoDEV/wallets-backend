@@ -1,21 +1,26 @@
 const { Op, fn, col } = require('sequelize');
 const { models } = require('../../libs/sequelize');
-const { assertDateStr, buildIncludedGroupWhere, quantiles } = require('./shared');
+const { assertDateStr, parseSinglePositiveId, quantiles } = require('./shared');
+const { resolveAnalyticsCategoryFilter, applyAnalyticsCategoryFilter } = require('../transactions/analytics_group_filter');
 
 async function getIncomeVolatility({ userId, fromDate, toDate, topN = 5, groupId }) {
   const from = assertDateStr(fromDate);
   const to = assertDateStr(toDate);
 
+  const whereTx = { userId, status: 'completed', date: { [Op.gte]: from, [Op.lte]: to } };
+  // ponytail: behavior hardcoded 'include' — this endpoint has no include/exclude toggle
+  const analyticsFilter = await resolveAnalyticsCategoryFilter({ userId, behavior: 'include', groupId: parseSinglePositiveId(groupId) });
+  applyAnalyticsCategoryFilter(whereTx, analyticsFilter);
+
   const topRows = await models.Transaction.findAll({
     attributes: [[col('Category.name'), 'category'], [fn('SUM', col('Transaction.amount_usd')), 'sum_usd']],
-    where: { userId, status: 'completed', date: { [Op.gte]: from, [Op.lte]: to } },
+    where: whereTx,
     include: [{
       model: models.Category,
       attributes: [],
       where: { type: 'ingreso' },
       required: true,
       paranoid: false,
-      include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true, paranoid: false }],
     }],
     group: [col('Category.name')],
     order: [[fn('SUM', col('Transaction.amount_usd')), 'DESC']],
@@ -27,14 +32,13 @@ async function getIncomeVolatility({ userId, fromDate, toDate, topN = 5, groupId
 
   const txs = await models.Transaction.findAll({
     attributes: [[col('Category.name'), 'category'], 'amountUsd'],
-    where: { userId, status: 'completed', date: { [Op.gte]: from, [Op.lte]: to } },
+    where: whereTx,
     include: [{
       model: models.Category,
       attributes: [],
       where: { type: 'ingreso', name: { [Op.in]: catNames } },
       required: true,
       paranoid: false,
-      include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true, paranoid: false }],
     }],
     raw: true,
   });

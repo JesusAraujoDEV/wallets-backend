@@ -1,6 +1,7 @@
 const { Op, fn, col } = require('sequelize');
 const { models } = require('../../libs/sequelize');
-const { parseIdFilter, assertDateStr, buildIncludedGroupWhere, WEEKDAYS } = require('./shared');
+const { parseIdFilter, assertDateStr, parseSinglePositiveId, WEEKDAYS } = require('./shared');
+const { resolveAnalyticsCategoryFilter, applyAnalyticsCategoryFilter } = require('../transactions/analytics_group_filter');
 
 async function getIncomeHeatmap({ userId, fromDate, toDate, accountId, groupId }) {
   const from = assertDateStr(fromDate);
@@ -9,6 +10,9 @@ async function getIncomeHeatmap({ userId, fromDate, toDate, accountId, groupId }
 
   const whereTx = { userId, status: 'completed', date: { [Op.gte]: from, [Op.lte]: to } };
   if (accountIds) whereTx.accountId = accountIds.length > 1 ? { [Op.in]: accountIds } : accountIds[0];
+  // ponytail: behavior hardcoded 'include' — this endpoint has no include/exclude toggle
+  const analyticsFilter = await resolveAnalyticsCategoryFilter({ userId, behavior: 'include', groupId: parseSinglePositiveId(groupId) });
+  applyAnalyticsCategoryFilter(whereTx, analyticsFilter);
 
   const rows = await models.Transaction.findAll({
     attributes: [
@@ -23,7 +27,6 @@ async function getIncomeHeatmap({ userId, fromDate, toDate, accountId, groupId }
       where: { type: 'ingreso' },
       required: true,
       paranoid: false,
-      include: [{ model: models.CategoryGroup, attributes: [], where: buildIncludedGroupWhere(groupId), required: true, paranoid: false }],
     }],
     group: [col('Category.name'), fn('date_part', 'dow', col('Transaction.date'))],
     order: [[col('Category.name'), 'ASC']],

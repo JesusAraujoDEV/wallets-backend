@@ -12,13 +12,6 @@ function parseSinglePositiveId(input) {
   return parsed;
 }
 
-function buildIncludedGroupWhere(groupId) {
-  const where = { analyticsBehavior: 'include' };
-  const parsedGroupId = parseSinglePositiveId(groupId);
-  if (parsedGroupId !== null) where.id = parsedGroupId;
-  return where;
-}
-
 function assertDateStr(s) {
   if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(String(s))) throw new Error('Fecha inválida. Use YYYY-MM-DD');
   return s;
@@ -60,7 +53,6 @@ const WEEKDAYS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','S�
 module.exports = {
   parseIdFilter,
   parseSinglePositiveId,
-  buildIncludedGroupWhere,
   assertDateStr,
   formatPeriod,
   quantiles,
