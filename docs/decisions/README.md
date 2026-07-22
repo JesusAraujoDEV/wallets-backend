@@ -45,4 +45,5 @@ Add new ADRs to this list with their status:
 
 | # | Title | Status |
 |---|-------|--------|
-| - | - | - |
+| 0001 | Adopt logical delete on domain tables via Sequelize paranoid | Accepted |
+| 0002 | Exclude internal movements and balance adjustments from analytics | Accepted |
