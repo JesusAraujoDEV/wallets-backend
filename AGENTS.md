@@ -206,6 +206,17 @@ Who approves each role's stage transitions (the PR, the pass to Ready) — not w
 
 If a role is unmapped, the agent asks once and records the answer here — the question must never repeat. Keep this table current via PR when the team changes.
 
+## Cross-repo parity rule (MANDATORY)
+
+Every **epic** — a cohesive feature initiative, not a one-off bugfix — built in the web frontend must also be built in the mobile app.
+
+- **Source of truth for an epic's scope**: `wallets-frontend` (web). What the epic covers — capabilities, data, business rules — is defined there.
+- **Must mirror it**: `platica-app` (mobile). Same capability, mobile-appropriate UI: bottom sheets, FABs, native inputs, phone-sized navigation. Not a literal pixel copy of the desktop layout, and never a desktop-only interaction pattern.
+- **Direction is one-way, web → mobile.** The mobile app is a companion; nothing obliges the reverse.
+- **Backend is shared.** Changes in `wallets-backend` that support an epic serve both consumers automatically — the API is the same. No per-client duplication of backend work.
+
+This section is worded identically in `wallets-frontend/AGENTS.md`, `wallets-backend/AGENTS.md` and `platica-app/AGENTS.md`. Change it in all three or not at all.
+
 ## Agent rules
 
 - Read this file first.
