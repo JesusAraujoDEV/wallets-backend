@@ -1,6 +1,6 @@
 {
   "name": "wallets-backend",
-  "version": "1.0.0",
+  "version": "0.5.5",
   "description": "Backend for the Wallets personal finance application",
   "main": "server/server.js",
   "scripts": {
