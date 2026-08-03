@@ -29,6 +29,15 @@ async function getCurrentRate() {
   return getRateForDate(resolveDateUtc());
 }
 
+function toPlainRate(r) {
+  return {
+    date: r.date,
+    usdRate: Number(r.usdRate),
+    eurRate: Number(r.eurRate),
+    usdtRate: r.usdtRate === null ? null : Number(r.usdtRate),
+  };
+}
+
 async function getRateHistory({ from, to }) {
   const where = {};
   if (from || to) {
@@ -43,26 +52,43 @@ async function getRateHistory({ from, to }) {
     raw: true,
   });
 
-  const mapped = rows.map((r) => ({
-    date: r.date,
-    usdRate: Number(r.usdRate),
-    eurRate: Number(r.eurRate),
-    usdtRate: r.usdtRate === null ? null : Number(r.usdtRate),
-  }));
+  const byDate = new Map(rows.map((r) => [r.date, toPlainRate(r)]));
 
   // BCV can publish today's rate after the last sync-worker run (see syncRecentRates):
   // patch it in from the live/cached source so the table doesn't lag behind /current.
   const today = resolveDateUtc();
   const requestedRange = (!to || to >= today) && (!from || from <= today);
-  const alreadyHasToday = mapped.some((r) => r.date === today);
-  if (requestedRange && !alreadyHasToday) {
+  if (requestedRange && !byDate.has(today)) {
     const todayRate = await getRateForDate(today).catch(() => null);
     if (todayRate && todayRate.source === 'live') {
-      mapped.push({ date: today, usdRate: Number(todayRate.usdRate), eurRate: Number(todayRate.eurRate), usdtRate: todayRate.usdtRate == null ? null : Number(todayRate.usdtRate) });
+      byDate.set(today, toPlainRate(todayRate));
     }
   }
 
-  return mapped;
+  // Weekends/holidays have no BCV-published rate, so they never get a DB row (see
+  // getRateWithFallback, which does this per-date walk-back for single-date lookups
+  // but was never applied to the range query here). Carry the closest prior day's
+  // rate forward so every date in [from, to] resolves instead of leaving gaps.
+  if (from && to) {
+    let carry = null;
+    if (!byDate.has(from)) {
+      const prior = await models.ExchangeRate.findOne({
+        where: { date: { [Op.lt]: from } },
+        order: [['date', 'DESC']],
+        raw: true,
+      });
+      if (prior) carry = toPlainRate(prior);
+    }
+    for (let cursor = from; cursor <= to; cursor = shiftDateUtc(cursor, 1)) {
+      if (byDate.has(cursor)) {
+        carry = byDate.get(cursor);
+      } else if (carry) {
+        byDate.set(cursor, { ...carry, date: cursor });
+      }
+    }
+  }
+
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
 
 async function upsertRateForDate(date) {
