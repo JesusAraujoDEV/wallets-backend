@@ -122,6 +122,17 @@ async function createTransaction(userId, txData) {
       commissionTx = commission.tx;
     }
 
+    // Assign tags if provided
+    if (txData.tagIds && txData.tagIds.length > 0) {
+      const tags = await models.Tag.findAll({ where: { id: txData.tagIds, userId }, transaction: t });
+      if (tags.length !== txData.tagIds.length) {
+        throw new BadRequestError('Uno o más tags no pertenecen al usuario.');
+      }
+      const rows = txData.tagIds.map(tagId => ({ transactionId: main.tx.id, tagId }));
+      await models.TransactionTag.bulkCreate(rows, { transaction: t });
+      main.tx.tags = tags.map(tg => ({ id: tg.id, name: tg.name, color: tg.color, icon: tg.icon }));
+    }
+
     return { tx: main.tx, commissionTx };
   });
 }

@@ -9,6 +9,8 @@ const { Budget, BudgetSchema } = require('./budget.model');
 const { TelegramSession, TelegramSessionSchema } = require('./telegram_session.model');
 const { OtpCode, OtpCodeSchema } = require('./otp_code.model');
 const { ExchangeRate, ExchangeRateSchema } = require('./exchange_rate.model');
+const { Tag, TagSchema } = require('./tag.model');
+const { TransactionTag, TransactionTagSchema } = require('./transaction_tag.model');
 
 function setupModels(sequelize) {
   // 1. Inicializar
@@ -23,6 +25,8 @@ function setupModels(sequelize) {
   TelegramSession.init(TelegramSessionSchema, TelegramSession.config(sequelize));
   OtpCode.init(OtpCodeSchema, OtpCode.config(sequelize));
   ExchangeRate.init(ExchangeRateSchema, ExchangeRate.config(sequelize));
+  Tag.init(TagSchema, Tag.config(sequelize));
+  TransactionTag.init(TransactionTagSchema, TransactionTag.config(sequelize));
 
   // 2. Asociar
   User.associate(sequelize.models);
@@ -36,6 +40,8 @@ function setupModels(sequelize) {
   TelegramSession.associate(sequelize.models);
   OtpCode.associate(sequelize.models);
   ExchangeRate.associate(sequelize.models);
+  Tag.associate(sequelize.models);
+  TransactionTag.associate(sequelize.models);
 
   return sequelize.models;
 }

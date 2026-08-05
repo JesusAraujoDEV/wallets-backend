@@ -77,6 +77,11 @@ function buildApiRouter() {
     router.use('/exchange-rates', exchangeRateRouter);
   } catch (e) { console.error('Failed to mount /exchange-rates router:', e.message); }
 
+  try {
+    const tagRouter = require('./tag_router');
+    router.use('/tags', tagRouter);
+  } catch (e) { console.error('Failed to mount /tags router:', e.message); }
+
   return router;
 }
 

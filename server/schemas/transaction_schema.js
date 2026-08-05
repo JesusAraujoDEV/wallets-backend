@@ -13,6 +13,7 @@ const createTransactionSchema = Joi.object({
   categoryId: Joi.number().integer().positive().required(),
   accountId: Joi.number().integer().positive().required(),
   commission: Joi.number().min(0).precision(2).optional(),
+  tagIds: Joi.array().items(Joi.number().integer().positive()).max(20).optional(),
 });
 
 const transferSchema = Joi.object({

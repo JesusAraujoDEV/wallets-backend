@@ -100,6 +100,12 @@ class Transaction extends Model {
     this.belongsTo(models.Account, { foreignKey: 'account_id' });
     this.belongsTo(models.Category, { foreignKey: 'category_id' });
     this.belongsTo(models.Debt, { foreignKey: 'debt_id' });
+    this.belongsToMany(models.Tag, {
+      through: models.TransactionTag,
+      foreignKey: 'transaction_id',
+      otherKey: 'tag_id',
+      as: 'tags',
+    });
   }
 
   static config(sequelize) {

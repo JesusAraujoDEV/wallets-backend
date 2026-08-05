@@ -7,7 +7,7 @@ const {
 const { resolveAnalyticsCategoryFilter, applyAnalyticsCategoryFilter } = require('./analytics_group_filter');
 
 async function getAllTransactions(filters) {
-  const { userId, q, type, categoryId, accountId, debtId, date, dateFrom, dateTo, month, analyticsBehavior, groupId, status } = filters;
+  const { userId, q, type, categoryId, accountId, debtId, date, dateFrom, dateTo, month, analyticsBehavior, groupId, status, tagId } = filters;
   const whereTx = { userId };
   if (status) whereTx.status = status;
   const accountIds = parseIdFilter(accountId);
@@ -50,6 +50,18 @@ async function getAllTransactions(filters) {
     paranoid: false,
   });
 
+  // Filter by tagId if provided
+  if (tagId) {
+    const tagLinks = await models.TransactionTag.findAll({
+      where: { tagId: parseInt(tagId) },
+      attributes: ['transactionId'],
+      raw: true,
+    });
+    const txIdsForTag = tagLinks.map(l => l.transactionId);
+    if (txIdsForTag.length === 0) return [];
+    whereTx.id = { [Op.in]: txIdsForTag };
+  }
+
   const rows = await models.Transaction.findAll({
     attributes: ['id', 'description', 'amount', 'currency', ['amount_usd', 'amountUsd'], ['exchange_rate_used', 'exchangeRateUsed'], ['amount_usdt', 'amountUsdt'], 'date', 'status', ['category_id', 'categoryId'], ['account_id', 'accountId'], ['debt_id', 'debtId']],
     where: whereTx,
@@ -58,6 +70,29 @@ async function getAllTransactions(filters) {
     raw: true,
     nest: true,
   });
+
+  // Batch-fetch tags for all returned transactions
+  const txIds = rows.map(r => r.id);
+  let tagsMap = {};
+  if (txIds.length > 0) {
+    const links = await models.TransactionTag.findAll({
+      where: { transactionId: { [Op.in]: txIds } },
+      raw: true,
+    });
+    if (links.length > 0) {
+      const tagIds = [...new Set(links.map(l => l.tagId))];
+      const allTags = await models.Tag.findAll({
+        where: { id: { [Op.in]: tagIds } },
+        attributes: ['id', 'name', 'color', 'icon'],
+        raw: true,
+      });
+      const tagById = Object.fromEntries(allTags.map(t => [t.id, t]));
+      for (const link of links) {
+        if (!tagsMap[link.transactionId]) tagsMap[link.transactionId] = [];
+        if (tagById[link.tagId]) tagsMap[link.transactionId].push(tagById[link.tagId]);
+      }
+    }
+  }
 
   return rows.map(r => ({
     id: r.id,
@@ -73,6 +108,7 @@ async function getAllTransactions(filters) {
     accountId: r.accountId,
     debtId: r.debtId || null,
     type: r.Category?.type,
+    tags: tagsMap[r.id] || [],
   }));
 }
 

@@ -5,7 +5,7 @@ const { BadRequestError, NotFoundError } = require('../utils/errors');
 async function list(req, res, next) {
   try {
     const userId = req.user.id;
-    const { grouped, pageSize, cursorDate, q, type, categoryId, accountId, debtId, date, dateFrom, dateTo, month, analyticsBehavior } = req.query;
+    const { grouped, pageSize, cursorDate, q, type, categoryId, accountId, debtId, date, dateFrom, dateTo, month, analyticsBehavior, tagId } = req.query;
     if (typeof analyticsBehavior !== 'undefined') {
       const v = String(analyticsBehavior).toLowerCase();
       if (v !== 'include' && v !== 'exclude') throw new BadRequestError('analyticsBehavior must be include|exclude');
@@ -25,10 +25,11 @@ async function list(req, res, next) {
         dateTo,
         month,
         analyticsBehavior,
+        tagId,
       });
       return res.json(result);
     }
-    const rows = await txService.getAllTransactions({ userId, q, type, categoryId, accountId, debtId, date, dateFrom, dateTo, month, analyticsBehavior });
+    const rows = await txService.getAllTransactions({ userId, q, type, categoryId, accountId, debtId, date, dateFrom, dateTo, month, analyticsBehavior, tagId });
     return res.json(rows);
   } catch (e) { return next(e); }
 }
